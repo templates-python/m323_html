@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M323 – Interaktive Erklärungen</title>
+<style>
+  :root{
+    --bg:#fff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4;
+    --panel:#f6f8fa; --accent:#0b62c4; --accent-soft:#e7f0fb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d;
+      --panel:#1c2229; --accent:#65a9f5; --accent-soft:#1d2c3d;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:32px 20px;background:var(--bg);color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 28px;font-size:14px}
+  h2{
+    font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    margin:28px 0 10px;font-weight:600;
+  }
+  a.card{
+    display:block;text-decoration:none;color:inherit;
+    border:1px solid var(--line);border-radius:8px;background:var(--panel);
+    padding:14px 16px;margin-bottom:10px;
+  }
+  a.card:hover{border-color:var(--accent);background:var(--accent-soft)}
+  a.card .t{font-weight:600;font-size:15px;display:block;margin-bottom:3px}
+  a.card .d{color:var(--muted);font-size:13.5px}
+  footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px}
+  code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>M323 – Interaktive Erklärungen</h1>
+  <p class="sub">Standalone-HTML-Animationen zum Modul 323 «Funktional Programmieren».
+     Sie werden im Modulwiki per <code>iframe</code> in die jeweilige Theorieseite eingebettet.</p>
+
+  <h2>LU02 – Grundkonzepte</h2>
+
+  <a class="card" href="lu02/byvalue-byreference.html">
+    <span class="t">By Value und By Reference</span>
+    <span class="d">Schritt für Schritt: was beim Funktionsaufruf mit <code>int</code> und mit <code>list</code>
+      wirklich im Speicher passiert – und warum nur eines der beiden das Original verändert.</span>
+  </a>
+
+  <footer>
+    Quellen: <a href="https://github.com/templates-python/m323_html" style="color:var(--accent)">templates-python/m323_html</a> ·
+    CC BY-NC-SA 4.0 · Kevin Maurizi
+  </footer>
+
+</div>
+</body>
+</html>
