@@ -11,6 +11,7 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | Datei | Learning Unit | Thema |
 |---|---|---|
 | `index.html` | – | Übersicht aller Animationen |
+| `lu02/pure-vs-unpure.html` | LU02b | Determinismus: gleiche Eingabe, gleiches Ergebnis? Mit und ohne globalen Zustand |
 | `lu02/byvalue-byreference.html` | LU02d | By Value / By Reference: Speichermodell beim Funktionsaufruf, `int` vs. `list` |
 | `lu02/objekte-und-standardwerte.html` | LU02e | Objekte by reference, `frozen=True`, geteilter mutable Standardwert |
 

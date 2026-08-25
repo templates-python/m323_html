@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU02b – Pure und unpure Functions</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4;
+    --panel:#f6f8fa; --hl:#fff3c4; --hl-border:#e5b800;
+    --accent:#0b62c4; --accent-soft:#e7f0fb;
+    --immutable:#0a7d55; --immutable-soft:#e4f5ee;
+    --mutable:#b3541e;  --mutable-soft:#fbeee4;
+    --new:#0a7d55; --changed:#b3541e; --arrow:#0b62c4;
+    --console-bg:#20262c; --console-fg:#e6edf3;
+    --same:#0a7d55; --diff:#b3541e;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d;
+      --panel:#1c2229; --hl:#3d3413; --hl-border:#b79600;
+      --accent:#65a9f5; --accent-soft:#1d2c3d;
+      --immutable:#4fc99a; --immutable-soft:#16302a;
+      --mutable:#e79465;  --mutable-soft:#33231a;
+      --new:#4fc99a; --changed:#e79465; --arrow:#65a9f5;
+      --console-bg:#0d1117; --console-fg:#e6edf3;
+      --same:#4fc99a; --diff:#e79465;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--fg);padding:14px;
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  .app{max-width:1020px;margin:0 auto}
+
+  .head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .head h1{font-size:17px;margin:0;font-weight:600}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{
+    font:inherit;font-size:13px;padding:6px 12px;cursor:pointer;
+    background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:999px;
+  }
+  .tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+  .main{display:grid;grid-template-columns:minmax(280px,1fr) minmax(320px,1.05fr);gap:14px;align-items:start}
+  @media (max-width:780px){ .main{grid-template-columns:1fr} }
+
+  .panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+  .panel h2{
+    font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    margin:0;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600;
+  }
+
+  pre.code{margin:0;padding:10px 0;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-x:auto}
+  .ln{display:flex;padding:0 12px;white-space:pre;border-left:3px solid transparent}
+  .ln .num{color:var(--muted);opacity:.6;width:2.1em;text-align:right;margin-right:14px;user-select:none;flex:none}
+  .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+  .ln.caller{background:color-mix(in srgb,var(--hl) 45%,transparent)}
+
+  .mem{position:relative;padding:12px;min-height:210px}
+  .mem-grid{display:grid;grid-template-columns:1fr 1fr;gap:34px}
+  .col-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-bottom:8px}
+  #arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+  .frame{border:1px dashed var(--line);border-radius:6px;padding:7px;margin-bottom:8px;background:var(--bg)}
+  .frame-name{font:11px ui-monospace,monospace;color:var(--muted);margin-bottom:5px}
+  .frame.call{border-color:var(--accent);border-style:solid;background:var(--accent-soft)}
+
+  .varrow{display:block}
+  .var{display:inline-block;font:12.5px ui-monospace,monospace;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 9px;margin:3px 0}
+  .var.plain{border-style:dotted;color:var(--muted)}
+
+  .obj{position:relative;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:7px 10px;margin-bottom:9px}
+  .obj .type{font:10.5px ui-monospace,monospace;color:var(--muted);display:block;margin-bottom:2px}
+  .obj .val{font:13.5px ui-monospace,monospace;font-weight:600}
+  .obj .note{display:block;font-size:10.5px;color:var(--muted);margin-top:4px;font-style:italic}
+  .obj .badge{position:absolute;top:6px;right:8px;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:999px}
+  .obj.immutable .badge{background:var(--immutable-soft);color:var(--immutable)}
+  .obj.mutable  .badge{background:var(--mutable-soft);color:var(--mutable)}
+  .obj.is-new{border-color:var(--new);box-shadow:0 0 0 3px color-mix(in srgb,var(--new) 18%,transparent)}
+  .flag{font-size:10.5px;font-weight:700;margin-left:6px}
+  .flag.new{color:var(--new)}
+
+  .console{background:var(--console-bg);color:var(--console-fg);border-radius:6px;font:12.5px/1.6 ui-monospace,monospace;padding:8px 11px;margin-top:12px;min-height:34px;white-space:pre-wrap}
+  .console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+  /* Aufruf-Protokoll */
+  .log{margin-top:12px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg)}
+  .log-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:7px 10px;border-bottom:1px solid var(--line)}
+  table.logtab{width:100%;border-collapse:collapse;font:12.5px ui-monospace,monospace}
+  table.logtab th{
+    text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--muted);font-weight:600;padding:5px 10px;border-bottom:1px solid var(--line);
+  }
+  table.logtab td{padding:5px 10px;border-bottom:1px solid var(--line)}
+  table.logtab tr:last-child td{border-bottom:none}
+  table.logtab td.res{font-weight:700}
+  table.logtab td.res.same{color:var(--same)}
+  table.logtab td.res.diff{color:var(--diff)}
+  .log-empty{padding:8px 10px;font-size:12px;color:var(--muted);opacity:.7}
+
+  .caption{margin-top:14px;padding:12px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0;font-size:14px}
+  .caption b{color:var(--accent)}
+  .controls{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .controls button{font:inherit;font-size:13.5px;font-weight:600;padding:8px 16px;cursor:pointer;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
+  .controls button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .controls button:disabled{opacity:.4;cursor:default}
+  #next{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #next:hover:not(:disabled){opacity:.9;color:#fff}
+  .counter{font-size:12.5px;color:var(--muted);margin-left:auto}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="head">
+    <h1>Gleiche Eingabe – gleiches Ergebnis?</h1>
+    <div class="tabs">
+      <button data-ex="0" class="active">1 · unpure (globaler Zustand)</button>
+      <button data-ex="1">2 · pure</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2>Code</h2>
+      <pre class="code" id="code"></pre>
+    </div>
+    <div class="panel">
+      <h2>Arbeitsspeicher</h2>
+      <div class="mem">
+        <svg id="arrows"></svg>
+        <div class="mem-grid">
+          <div><div class="col-title">Namen</div><div id="frames"></div></div>
+          <div><div class="col-title">Objekte</div><div id="heap"></div></div>
+        </div>
+        <div class="console" id="console"></div>
+        <div class="log">
+          <div class="log-title">Aufruf-Protokoll</div>
+          <div id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Achten Sie am Ende auf das Aufruf-Protokoll – dieselbe Eingabe steht dort zweimal.</div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     Tab 1 – unpure: die Funktion verändert globalen Zustand
+     ============================================================ */
+  var CODE_U = [
+    "total = 0",
+    "",
+    "def add_to_total(x):",
+    "    global total",
+    "    total += x",
+    "",
+    "if __name__ == '__main__':",
+    "    add_to_total(3)",
+    "    print(total)",
+    "    add_to_total(3)",
+    "    print(total)"
+  ];
+
+  function intObj(id, v, state, note){
+    return { id: id, type: "int", kind: "immutable", val: String(v), state: state, note: note };
+  }
+  var STATE_NOTE = "globaler Zustand";
+
+  var LOG_HEAD_U = ["Aufruf", "Eingabe", "total danach"];
+  var ROW_U1 = { c: "add_to_total(3)", i: "3", r: "3" };
+  var ROW_U2 = { c: "add_to_total(3)", i: "3", r: "6", mark: "diff" };
+
+  var STEPS_U = [
+    { line: 1, frames: [{ name: "global", vars: [{ n: "total", ref: "o0" }] }],
+      heap: [intObj("o0", 0, "new", STATE_NOTE)], out: [], log: [],
+      cap: "<code>total</code> lebt <b>ausserhalb</b> jeder Funktion. Genau dieser Zustand macht das Verhalten der Funktion gleich unvorhersehbar." },
+
+    { line: 7, frames: [{ name: "global", vars: [{ n: "total", ref: "o0" }] }],
+      heap: [intObj("o0", 0, null, STATE_NOTE)], out: [], log: [],
+      cap: "Das Programm startet." },
+
+    { line: 3, caller: 8,
+      frames: [
+        { name: "global", vars: [{ n: "total", ref: "o0" }] },
+        { name: "add_to_total", call: true, vars: [{ n: "x = 3", plain: true }] }
+      ],
+      heap: [intObj("o0", 0, null, STATE_NOTE)], out: [], log: [],
+      cap: "<b>Erster Aufruf</b> mit der Eingabe 3." },
+
+    { line: 4,
+      frames: [
+        { name: "global", vars: [{ n: "total", ref: "o0" }] },
+        { name: "add_to_total", call: true, vars: [{ n: "x = 3", plain: true }] }
+      ],
+      heap: [intObj("o0", 0, null, STATE_NOTE)], out: [], log: [],
+      cap: "<code>global total</code> sagt: Diese Funktion fasst den äusseren Namen an, statt einen eigenen anzulegen. Das Schlüsselwort ist die sichtbare Warnung, dass hier eine unpure function entsteht." },
+
+    { line: 5,
+      frames: [
+        { name: "global", vars: [{ n: "total", ref: "o1" }] },
+        { name: "add_to_total", call: true, vars: [{ n: "x = 3", plain: true }] }
+      ],
+      heap: [intObj("o1", 3, "new", STATE_NOTE)], out: [], log: [],
+      cap: "<code>total += x</code>: Da <code>int</code> immutable ist, entsteht ein neues Objekt 3 und der <u>globale</u> Name zeigt jetzt darauf (siehe LU02d)." },
+
+    { line: 8, frames: [{ name: "global", vars: [{ n: "total", ref: "o1" }] }],
+      heap: [intObj("o1", 3, null, STATE_NOTE)], out: [], log: [ROW_U1],
+      cap: "Der Aufruf ist fertig – und hat die Welt ausserhalb verändert. Wir notieren ihn im Protokoll." },
+
+    { line: 9, frames: [{ name: "global", vars: [{ n: "total", ref: "o1" }] }],
+      heap: [intObj("o1", 3, null, STATE_NOTE)], out: ["3"], log: [ROW_U1],
+      cap: "Ausgabe: 3. Soweit erwartbar." },
+
+    { line: 3, caller: 10,
+      frames: [
+        { name: "global", vars: [{ n: "total", ref: "o1" }] },
+        { name: "add_to_total", call: true, vars: [{ n: "x = 3", plain: true }] }
+      ],
+      heap: [intObj("o1", 3, null, STATE_NOTE)], out: ["3"], log: [ROW_U1],
+      cap: "<b>Zweiter Aufruf – exakt dieselbe Eingabe 3.</b> Aber der Ausgangszustand ist nicht mehr derselbe: <code>total</code> ist bereits 3." },
+
+    { line: 5,
+      frames: [
+        { name: "global", vars: [{ n: "total", ref: "o2" }] },
+        { name: "add_to_total", call: true, vars: [{ n: "x = 3", plain: true }] }
+      ],
+      heap: [intObj("o2", 6, "new", STATE_NOTE)], out: ["3"], log: [ROW_U1],
+      cap: "3 + 3 = 6. Die Funktion rechnet nicht mit dem, was sie bekommt, sondern mit dem, was sie vorfindet." },
+
+    { line: 10, frames: [{ name: "global", vars: [{ n: "total", ref: "o2" }] }],
+      heap: [intObj("o2", 6, null, STATE_NOTE)], out: ["3"], log: [ROW_U1, ROW_U2],
+      cap: "Zweiter Eintrag im Protokoll – <b>gleiche Eingabe, anderes Ergebnis</b>." },
+
+    { line: 11, frames: [{ name: "global", vars: [{ n: "total", ref: "o2" }] }],
+      heap: [intObj("o2", 6, null, STATE_NOTE)], out: ["3", "6"], log: [ROW_U1, ROW_U2],
+      cap: "<b>Das ist gemeint mit «nicht deterministisch».</b> Aus dem Aufruf <code>add_to_total(3)</code> allein lässt sich das Ergebnis nicht vorhersagen – man muss die ganze bisherige Programmgeschichte kennen. Genau das macht solche Funktionen schwer testbar." }
+  ];
+
+  /* ============================================================
+     Tab 2 – pure: das Ergebnis hängt nur von den Eingaben ab
+     ============================================================ */
+  var CODE_P = [
+    "def add(x, y):",
+    "    return x + y",
+    "",
+    "if __name__ == '__main__':",
+    "    print(add(2, 3))",
+    "    print(add(2, 3))"
+  ];
+
+  var ROW_P1 = { c: "add(2, 3)", i: "2, 3", r: "5" };
+  var ROW_P2 = { c: "add(2, 3)", i: "2, 3", r: "5", mark: "same" };
+
+  var STEPS_P = [
+    { line: 4, frames: [{ name: "global", vars: [] }], heap: [], out: [], log: [],
+      cap: "Beachten Sie, was hier <b>fehlt</b>: Es gibt keinen Zustand ausserhalb der Funktion. Nichts, was sich zwischen zwei Aufrufen ändern könnte." },
+
+    { line: 1, caller: 5,
+      frames: [
+        { name: "global", vars: [] },
+        { name: "add", call: true, vars: [{ n: "x = 2", plain: true }, { n: "y = 3", plain: true }] }
+      ],
+      heap: [], out: [], log: [],
+      cap: "<b>Erster Aufruf</b> mit den Eingaben 2 und 3." },
+
+    { line: 2,
+      frames: [
+        { name: "global", vars: [] },
+        { name: "add", call: true, vars: [{ n: "x = 2", plain: true }, { n: "y = 3", plain: true }] }
+      ],
+      heap: [intObj("r1", 5, "new", "Rückgabewert")], out: [], log: [],
+      cap: "Das Ergebnis entsteht ausschliesslich aus <code>x</code> und <code>y</code>. Die Funktion liest nichts von aussen und schreibt nichts nach aussen." },
+
+    { line: 5, frames: [{ name: "global", vars: [] }],
+      heap: [intObj("r1", 5, null, "Rückgabewert")], out: ["5"], log: [ROW_P1],
+      cap: "Ausgabe 5, Protokolleintrag eins. Der Frame ist weg – und hat keine Spur hinterlassen." },
+
+    { line: 1, caller: 6,
+      frames: [
+        { name: "global", vars: [] },
+        { name: "add", call: true, vars: [{ n: "x = 2", plain: true }, { n: "y = 3", plain: true }] }
+      ],
+      heap: [], out: ["5"], log: [ROW_P1],
+      cap: "<b>Zweiter Aufruf, dieselben Eingaben.</b> Die Funktion startet unter exakt denselben Bedingungen wie beim ersten Mal – es gibt ja nichts, was sich hätte ändern können." },
+
+    { line: 2,
+      frames: [
+        { name: "global", vars: [] },
+        { name: "add", call: true, vars: [{ n: "x = 2", plain: true }, { n: "y = 3", plain: true }] }
+      ],
+      heap: [intObj("r2", 5, "new", "Rückgabewert")], out: ["5"], log: [ROW_P1],
+      cap: "Wieder 5 – zwangsläufig." },
+
+    { line: 6, frames: [{ name: "global", vars: [] }],
+      heap: [intObj("r2", 5, null, "Rückgabewert")], out: ["5", "5"], log: [ROW_P1, ROW_P2],
+      cap: "<b>Deterministisch.</b> Der Aufruf <code>add(2, 3)</code> lässt sich lesen, ohne den Rest des Programms zu kennen – und im Test durch seinen Wert 5 ersetzen. Das ist der praktische Gewinn von pure functions." }
+  ];
+
+  var EXAMPLES = [
+    { code: CODE_U, steps: STEPS_U, head: LOG_HEAD_U },
+    { code: CODE_P, steps: STEPS_P, head: ["Aufruf", "Eingabe", "Ergebnis"] }
+  ];
+
+  /* ============================================================
+     Rendering
+     ============================================================ */
+  var elCode = document.getElementById("code");
+  var elFrames = document.getElementById("frames");
+  var elHeap = document.getElementById("heap");
+  var elConsole = document.getElementById("console");
+  var elLog = document.getElementById("log");
+  var elCaption = document.getElementById("caption");
+  var elCounter = document.getElementById("counter");
+  var elArrows = document.getElementById("arrows");
+  var btnPrev = document.getElementById("prev");
+  var btnNext = document.getElementById("next");
+  var btnReset = document.getElementById("reset");
+
+  var exIndex = 0, stepIndex = 0;
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function renderCode(){
+    var lines = EXAMPLES[exIndex].code, html = "";
+    for (var i = 0; i < lines.length; i++){
+      html += '<div class="ln" data-line="' + (i+1) + '">'
+            + '<span class="num">' + (i+1) + '</span>'
+            + '<span>' + (esc(lines[i]) || " ") + '</span></div>';
+    }
+    elCode.innerHTML = html;
+  }
+
+  function renderStep(){
+    var ex = EXAMPLES[exIndex], step = ex.steps[stepIndex];
+
+    var lns = elCode.querySelectorAll(".ln");
+    for (var i = 0; i < lns.length; i++){
+      var n = parseInt(lns[i].getAttribute("data-line"), 10);
+      lns[i].className = "ln" + (step.line === n ? " active" : "") + (step.caller === n ? " caller" : "");
+    }
+
+    var fh = "";
+    step.frames.forEach(function(f){
+      fh += '<div class="frame' + (f.call ? " call" : "") + '">'
+          + '<div class="frame-name">' + esc(f.name) + '()</div>';
+      if (!f.vars.length) fh += '<div class="frame-name" style="opacity:.5">– leer –</div>';
+      f.vars.forEach(function(v){
+        fh += '<span class="varrow"><span class="var' + (v.plain ? " plain" : "") + '"'
+            + (v.ref ? ' data-ref="' + v.ref + '"' : "") + '>' + esc(v.n) + '</span></span>';
+      });
+      fh += '</div>';
+    });
+    elFrames.innerHTML = fh;
+
+    var hh = "";
+    step.heap.forEach(function(o){
+      var flag = o.state === "new" ? '<span class="flag new">NEU</span>' : "";
+      hh += '<div class="obj ' + o.kind + (o.state ? " is-" + o.state : "") + '" data-id="' + o.id + '">'
+          + '<span class="badge">' + esc(o.kind) + '</span>'
+          + '<span class="type">' + esc(o.type) + '</span>'
+          + '<span class="val">' + esc(o.val) + '</span>' + flag
+          + (o.note ? '<span class="note">' + esc(o.note) + '</span>' : "")
+          + '</div>';
+    });
+    if (!hh) hh = '<div class="frame-name" style="opacity:.5">– kein Zustand ausserhalb –</div>';
+    elHeap.innerHTML = hh;
+
+    elConsole.textContent = step.out.join("\n");
+
+    if (!step.log.length){
+      elLog.innerHTML = '<div class="log-empty">– noch kein Aufruf –</div>';
+    } else {
+      var lh = '<table class="logtab"><tr>'
+             + '<th>' + esc(ex.head[0]) + '</th><th>' + esc(ex.head[1]) + '</th><th>' + esc(ex.head[2]) + '</th></tr>';
+      step.log.forEach(function(r){
+        lh += '<tr><td>' + esc(r.c) + '</td><td>' + esc(r.i) + '</td>'
+            + '<td class="res' + (r.mark ? " " + r.mark : "") + '">' + esc(r.r) + '</td></tr>';
+      });
+      elLog.innerHTML = lh + '</table>';
+    }
+
+    elCaption.innerHTML = step.cap;
+    elCounter.textContent = "Schritt " + stepIndex + " / " + (ex.steps.length - 1);
+    btnPrev.disabled = stepIndex === 0;
+    btnNext.disabled = stepIndex === ex.steps.length - 1;
+
+    drawArrows();
+  }
+
+  function drawArrows(){
+    var mem = elArrows.parentNode, base = mem.getBoundingClientRect();
+    elArrows.setAttribute("viewBox", "0 0 " + base.width + " " + base.height);
+
+    var defs = '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" '
+             + 'markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+             + '<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--arrow)"/></marker></defs>';
+    var paths = "";
+
+    var vars = elFrames.querySelectorAll(".var[data-ref]");
+    for (var i = 0; i < vars.length; i++){
+      var target = elHeap.querySelector('.obj[data-id="' + vars[i].getAttribute("data-ref") + '"]');
+      if (!target) continue;
+      var a = vars[i].getBoundingClientRect(), b = target.getBoundingClientRect();
+      var x1 = a.right - base.left + 2, y1 = a.top - base.top + a.height / 2;
+      var x2 = b.left - base.left - 8,  y2 = b.top - base.top + b.height / 2;
+      var mx = x1 + (x2 - x1) * 0.55;
+      paths += '<path d="M ' + x1 + ' ' + y1 + ' C ' + mx + ' ' + y1 + ', ' + mx + ' ' + y2 + ', ' + x2 + ' ' + y2
+             + '" fill="none" stroke="var(--arrow)" stroke-width="1.6" marker-end="url(#ah)" opacity="0.85"/>';
+    }
+    elArrows.innerHTML = defs + paths;
+  }
+
+  function go(d){
+    var max = EXAMPLES[exIndex].steps.length - 1;
+    stepIndex = Math.min(max, Math.max(0, stepIndex + d));
+    renderStep();
+  }
+
+  function switchExample(i){
+    exIndex = i; stepIndex = 0;
+    var tabs = document.querySelectorAll(".tabs button");
+    for (var t = 0; t < tabs.length; t++) tabs[t].className = (t === i) ? "active" : "";
+    renderCode(); renderStep();
+  }
+
+  btnNext.addEventListener("click", function(){ go(1); });
+  btnPrev.addEventListener("click", function(){ go(-1); });
+  btnReset.addEventListener("click", function(){ stepIndex = 0; renderStep(); });
+
+  var tabs = document.querySelectorAll(".tabs button");
+  for (var t = 0; t < tabs.length; t++){
+    (function(btn){
+      btn.addEventListener("click", function(){ switchExample(parseInt(btn.getAttribute("data-ex"), 10)); });
+    })(tabs[t]);
+  }
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "ArrowRight"){ go(1); e.preventDefault(); }
+    if (e.key === "ArrowLeft"){ go(-1); e.preventDefault(); }
+  });
+
+  window.addEventListener("resize", drawArrows);
+
+  switchExample(0);
+})();
+</script>
+</body>
+</html>
