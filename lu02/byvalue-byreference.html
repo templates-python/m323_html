@@ -207,11 +207,11 @@
 
   var STEPS_INT = [
     {
-      line: null,
+      line: 6,
       frames: [{ name: "global", vars: [] }],
       heap: [],
       out: [],
-      cap: "Startzustand. Links stehen die <b>Namen</b> (Variablen), rechts die <b>Objekte</b> im Speicher. Ein Pfeil bedeutet: dieser Name zeigt auf dieses Objekt."
+      cap: "Hier startet das Programm. Links stehen die <b>Namen</b> (Variablen), rechts die <b>Objekte</b> im Speicher. Ein Pfeil bedeutet: dieser Name zeigt auf dieses Objekt."
     },
     {
       line: 7,
@@ -273,8 +273,18 @@
         { id: "o1", type: "int", val: "5", kind: "immutable" },
         { id: "o2", type: "int", val: "15", kind: "immutable" }
       ],
+      out: ["Originaler Wert: 5"],
+      cap: "Die erste Ausgabe folgt dem Pfeil von <code>a</code> – und landet bei der <b>5</b>. Das Original ist unberührt."
+    },
+    {
+      line: 10,
+      frames: [{ name: "global", vars: [{ n: "a", ref: "o1" }, { n: "new_value", ref: "o2" }] }],
+      heap: [
+        { id: "o1", type: "int", val: "5", kind: "immutable" },
+        { id: "o2", type: "int", val: "15", kind: "immutable" }
+      ],
       out: ["Originaler Wert: 5", "Neuer Wert: 15"],
-      cap: "<b>Ergebnis:</b> Das Original ist unberührt. Genau dieses Verhalten meint man mit <i>By Value</i> – obwohl streng genommen auch hier nur eine Referenz übergeben wurde."
+      cap: "<b>Ergebnis:</b> Zwei Namen, zwei Objekte – das Original blieb erhalten. Genau dieses Verhalten meint man mit <i>By Value</i>, obwohl streng genommen auch hier nur eine Referenz übergeben wurde. Schau dir jetzt Beispiel 2 an."
     }
   ];
 
@@ -294,7 +304,7 @@
 
   var STEPS_LIST = [
     {
-      line: null,
+      line: 5,
       frames: [{ name: "global", vars: [] }],
       heap: [],
       out: [],
