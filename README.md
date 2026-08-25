@@ -12,6 +12,7 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 |---|---|---|
 | `index.html` | – | Übersicht aller Animationen |
 | `lu02/byvalue-byreference.html` | LU02d | By Value / By Reference: Speichermodell beim Funktionsaufruf, `int` vs. `list` |
+| `lu02/objekte-und-standardwerte.html` | LU02e | Objekte by reference, `frozen=True`, geteilter mutable Standardwert |
 
 ## GitHub Pages aktivieren
 
@@ -51,6 +52,11 @@ anpassen. Bei schmalen Fenstern klappt das Layout einspaltig um und braucht mehr
 * Jeder Schritt hat einen erklärenden Satz; der didaktisch entscheidende Schritt wird
   explizit als solcher markiert.
 * Neue Datei in `index.html` und in der Tabelle oben ergänzen.
+* **Alle gezeigten Ausgaben gegen echtes Python prüfen**, bevor die Animation veröffentlicht wird –
+  eine Animation, die etwas anderes behauptet als der Interpreter, richtet mehr Schaden an als Nutzen.
+
+Die Schritt-Engine (CSS + JS) ist in jeder Datei dupliziert, damit jede Animation für sich allein
+lauffähig bleibt. Ab der dritten Animation lohnt es sich, sie nach `assets/` auszulagern.
 
 ## Lizenz
 

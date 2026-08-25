@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU02e – Objekte, Dataclasses und Standardwerte</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4;
+    --panel:#f6f8fa; --hl:#fff3c4; --hl-border:#e5b800;
+    --accent:#0b62c4; --accent-soft:#e7f0fb;
+    --immutable:#0a7d55; --immutable-soft:#e4f5ee;
+    --mutable:#b3541e;  --mutable-soft:#fbeee4;
+    --new:#0a7d55; --changed:#b3541e; --arrow:#0b62c4;
+    --console-bg:#20262c; --console-fg:#e6edf3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d;
+      --panel:#1c2229; --hl:#3d3413; --hl-border:#b79600;
+      --accent:#65a9f5; --accent-soft:#1d2c3d;
+      --immutable:#4fc99a; --immutable-soft:#16302a;
+      --mutable:#e79465;  --mutable-soft:#33231a;
+      --new:#4fc99a; --changed:#e79465; --arrow:#65a9f5;
+      --console-bg:#0d1117; --console-fg:#e6edf3;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--fg);padding:14px;
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  .app{max-width:1020px;margin:0 auto}
+
+  .head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .head h1{font-size:17px;margin:0;font-weight:600}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{
+    font:inherit;font-size:13px;padding:6px 12px;cursor:pointer;
+    background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:999px;
+  }
+  .tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+  .main{display:grid;grid-template-columns:minmax(290px,1fr) minmax(330px,1.1fr);gap:14px;align-items:start}
+  @media (max-width:780px){ .main{grid-template-columns:1fr} }
+
+  .panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+  .panel h2{
+    font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    margin:0;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600;
+  }
+
+  pre.code{margin:0;padding:10px 0;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-x:auto}
+  .ln{display:flex;padding:0 12px;white-space:pre;border-left:3px solid transparent}
+  .ln .num{color:var(--muted);opacity:.6;width:2.1em;text-align:right;margin-right:14px;user-select:none;flex:none}
+  .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+  .ln.caller{background:color-mix(in srgb,var(--hl) 45%,transparent)}
+
+  .mem{position:relative;padding:12px;min-height:270px}
+  .mem-grid{display:grid;grid-template-columns:1fr 1.05fr;gap:34px}
+  .col-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-bottom:8px}
+  #arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+  .frame{border:1px dashed var(--line);border-radius:6px;padding:7px;margin-bottom:8px;background:var(--bg)}
+  .frame-name{font:11px ui-monospace,monospace;color:var(--muted);margin-bottom:5px}
+  .frame.call{border-color:var(--accent);border-style:solid;background:var(--accent-soft)}
+  .frame.keep{border-color:var(--muted);opacity:.95}
+
+  .varrow{display:block}
+  .var{
+    display:inline-block;font:12.5px ui-monospace,monospace;background:var(--bg);
+    border:1px solid var(--line);border-radius:5px;padding:4px 9px;margin:3px 0;
+  }
+  .var.plain{border-style:dotted;color:var(--muted)}
+
+  .obj{position:relative;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:7px 10px;margin-bottom:9px}
+  .obj .type{font:10.5px ui-monospace,monospace;color:var(--muted);display:block;margin-bottom:3px}
+  .obj .val{font:13.5px ui-monospace,monospace;font-weight:600}
+  .obj .fld{display:flex;gap:10px;font:12.5px ui-monospace,monospace;padding:1px 0}
+  .obj .fld .k{color:var(--muted)}
+  .obj .fld .v{font-weight:600}
+  .obj .note{display:block;font-size:10.5px;color:var(--muted);margin-top:4px;font-style:italic}
+  .obj .badge{
+    position:absolute;top:6px;right:8px;font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:999px;
+  }
+  .obj.immutable .badge{background:var(--immutable-soft);color:var(--immutable)}
+  .obj.mutable  .badge{background:var(--mutable-soft);color:var(--mutable)}
+  .obj.is-new{border-color:var(--new);box-shadow:0 0 0 3px color-mix(in srgb,var(--new) 18%,transparent)}
+  .obj.is-changed{border-color:var(--changed);box-shadow:0 0 0 3px color-mix(in srgb,var(--changed) 18%,transparent)}
+  .flag{font-size:10.5px;font-weight:700;margin-left:6px}
+  .flag.new{color:var(--new)}
+  .flag.changed{color:var(--changed)}
+
+  .console{
+    background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+    font:12.5px/1.6 ui-monospace,monospace;padding:8px 11px;margin-top:12px;min-height:34px;white-space:pre-wrap;
+  }
+  .console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+  .caption{margin-top:14px;padding:12px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0;font-size:14px}
+  .caption b{color:var(--accent)}
+  .controls{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .controls button{font:inherit;font-size:13.5px;font-weight:600;padding:8px 16px;cursor:pointer;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
+  .controls button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .controls button:disabled{opacity:.4;cursor:default}
+  #next{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #next:hover:not(:disabled){opacity:.9;color:#fff}
+  .counter{font-size:12.5px;color:var(--muted);margin-left:auto}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="head">
+    <h1>Objekte, Dataclasses und Standardwerte</h1>
+    <div class="tabs">
+      <button data-ex="0" class="active">1 · Objekt übergeben</button>
+      <button data-ex="1">2 · frozen</button>
+      <button data-ex="2">3 · Geteilter Standardwert</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2>Code</h2>
+      <pre class="code" id="code"></pre>
+    </div>
+    <div class="panel">
+      <h2>Arbeitsspeicher</h2>
+      <div class="mem">
+        <svg id="arrows"></svg>
+        <div class="mem-grid">
+          <div><div class="col-title">Namen</div><div id="frames"></div></div>
+          <div><div class="col-title">Objekte</div><div id="heap"></div></div>
+        </div>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen.</div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     Tab 1 – Objekte werden by reference übergeben
+     ============================================================ */
+  var CODE_A = [
+    "from dataclasses import dataclass",
+    "",
+    "@dataclass",
+    "class Person:",
+    "    name: str",
+    "    age: int",
+    "",
+    "def birthday(person: Person):",
+    "    person.age += 1",
+    "",
+    "if __name__ == '__main__':",
+    "    p = Person(name='Alice', age=30)",
+    "    print(f'Vor der Änderung: {p}')",
+    "    birthday(p)",
+    "    print(f'Nach der Änderung: {p}')"
+  ];
+
+  function personObj(age, state){
+    return {
+      id: "o1", type: "Person", kind: "mutable", state: state,
+      fields: [{ k: "name", v: "'Alice'" }, { k: "age", v: String(age) }]
+    };
+  }
+
+  var OUT_A1 = "Vor der Änderung: Person(name='Alice', age=30)";
+  var OUT_A2 = "Nach der Änderung: Person(name='Alice', age=31)";
+
+  var STEPS_A = [
+    { line: 3, frames: [{ name: "global", vars: [] }], heap: [], out: [],
+      cap: "Eine <b>Dataclass</b> ist eine ganz normale Klasse – der Dekorator erzeugt nur den Konstruktor und ein paar Methoden für uns. Ihre Instanzen sind gewöhnliche Objekte im Speicher." },
+
+    { line: 11, frames: [{ name: "global", vars: [] }], heap: [], out: [],
+      cap: "Hier startet das Programm." },
+
+    { line: 12, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }] }],
+      heap: [personObj(30, "new")], out: [],
+      cap: "Der Konstruktor legt eine <b>Instanz</b> an. <code>p</code> ist wieder nur ein Name, der auf dieses Objekt zeigt." },
+
+    { line: 13, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }] }],
+      heap: [personObj(30)], out: [OUT_A1],
+      cap: "Ausgangszustand: <code>age</code> ist 30." },
+
+    { line: 8, caller: 14,
+      frames: [
+        { name: "global", vars: [{ n: "p", ref: "o1" }] },
+        { name: "birthday", call: true, vars: [{ n: "person", ref: "o1" }] }
+      ],
+      heap: [personObj(30)], out: [OUT_A1],
+      cap: "Genau dasselbe Bild wie bei der Liste in LU02d: <b>zwei Namen, eine Instanz.</b> Objekte werden in Python immer als Referenz übergeben." },
+
+    { line: 9,
+      frames: [
+        { name: "global", vars: [{ n: "p", ref: "o1" }] },
+        { name: "birthday", call: true, vars: [{ n: "person", ref: "o1" }] }
+      ],
+      heap: [personObj(31, "changed")], out: [OUT_A1],
+      cap: "<code>person.age += 1</code> hängt das <u>Attribut</u> <code>age</code> an ein neues int-Objekt 31 – die <b>Instanz selbst bleibt dieselbe</b>. Deshalb sieht auch <code>p</code> die Änderung." },
+
+    { line: 14, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }] }],
+      heap: [personObj(31)], out: [OUT_A1],
+      cap: "Der Frame von <code>birthday</code> verschwindet, die Änderung am Objekt bleibt. <code>birthday</code> ist damit eine <b>unpure function</b>: sie hat einen Seiteneffekt." },
+
+    { line: 15, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }] }],
+      heap: [personObj(31)], out: [OUT_A1, OUT_A2],
+      cap: "<b>Ergebnis:</b> Das Original wurde verändert. Für Dataclasses gilt dasselbe wie für Listen – der <code>@dataclass</code>-Dekorator ändert daran nichts." }
+  ];
+
+  /* ============================================================
+     Tab 2 – frozen: neue Instanz statt Mutation
+     ============================================================ */
+  var CODE_B = [
+    "from dataclasses import dataclass",
+    "",
+    "@dataclass(frozen=True)",
+    "class Person:",
+    "    name: str",
+    "    age: int",
+    "",
+    "def birthday(person: Person) -> Person:",
+    "    return Person(name=person.name, age=person.age + 1)",
+    "",
+    "if __name__ == '__main__':",
+    "    p = Person(name='Alice', age=30)",
+    "    new_p = birthday(p)",
+    "    print(f'Original: {p}')",
+    "    print(f'Neue Instanz: {new_p}')"
+  ];
+
+  function frozenObj(id, age, state){
+    return {
+      id: id, type: "Person", kind: "immutable", badge: "frozen", state: state,
+      fields: [{ k: "name", v: "'Alice'" }, { k: "age", v: String(age) }]
+    };
+  }
+
+  var OUT_B1 = "Original: Person(name='Alice', age=30)";
+  var OUT_B2 = "Neue Instanz: Person(name='Alice', age=31)";
+
+  var STEPS_B = [
+    { line: 3, frames: [{ name: "global", vars: [] }], heap: [], out: [],
+      cap: "Mit <code>frozen=True</code> werden die Attribute nach der Erstellung schreibgeschützt. <code>person.age += 1</code> würde jetzt mit einem <code>FrozenInstanceError</code> abbrechen." },
+
+    { line: 11, frames: [{ name: "global", vars: [] }], heap: [], out: [],
+      cap: "Hier startet das Programm." },
+
+    { line: 12, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }] }],
+      heap: [frozenObj("o1", 30, "new")], out: [],
+      cap: "Die erste Instanz entsteht – unveränderlich." },
+
+    { line: 8, caller: 13,
+      frames: [
+        { name: "global", vars: [{ n: "p", ref: "o1" }] },
+        { name: "birthday", call: true, vars: [{ n: "person", ref: "o1" }] }
+      ],
+      heap: [frozenObj("o1", 30)], out: [],
+      cap: "Auch hier wird die Referenz übergeben – aber verändern kann die Funktion die Instanz nicht mehr." },
+
+    { line: 9,
+      frames: [
+        { name: "global", vars: [{ n: "p", ref: "o1" }] },
+        { name: "birthday", call: true, vars: [{ n: "person", ref: "o1" }] }
+      ],
+      heap: [frozenObj("o1", 30), frozenObj("o2", 31, "new")], out: [],
+      cap: "<b>Der entscheidende Unterschied.</b> Statt zu mutieren, <b>baut</b> die Funktion eine neue Instanz aus den alten Werten. Das Original bleibt unangetastet – genau wie beim <code>int</code> in LU02d." },
+
+    { line: 13, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }, { n: "new_p", ref: "o2" }] }],
+      heap: [frozenObj("o1", 30), frozenObj("o2", 31)], out: [],
+      cap: "Zwei Namen, zwei Instanzen. Nichts von aussen wurde verändert." },
+
+    { line: 14, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }, { n: "new_p", ref: "o2" }] }],
+      heap: [frozenObj("o1", 30), frozenObj("o2", 31)], out: [OUT_B1],
+      cap: "Das Original ist noch 30." },
+
+    { line: 15, frames: [{ name: "global", vars: [{ n: "p", ref: "o1" }, { n: "new_p", ref: "o2" }] }],
+      heap: [frozenObj("o1", 30), frozenObj("o2", 31)], out: [OUT_B1, OUT_B2],
+      cap: "<b>Ergebnis:</b> <code>birthday</code> ist jetzt eine <b>pure function</b> – gleiche Eingabe, gleiches Ergebnis, keine Seiteneffekte. Das ist das Muster der funktionalen Programmierung: <i>nicht ändern, sondern neu erzeugen</i>." }
+  ];
+
+  /* ============================================================
+     Tab 3 – Der geteilte Standardwert
+     ============================================================ */
+  var CODE_C = [
+    "def add_grade(grade, grades=[]):",
+    "    grades.append(grade)",
+    "    return grades",
+    "",
+    "if __name__ == '__main__':",
+    "    print(add_grade(90))",
+    "    print(add_grade(80))"
+  ];
+
+  function defList(val, state){
+    return {
+      id: "o1", type: "list", kind: "mutable", state: state, val: val,
+      note: "Standardwert von grades – existiert nur einmal"
+    };
+  }
+  var DEF_FRAME = { name: "add_grade – Standardwert", keep: true, vars: [{ n: "grades=", ref: "o1" }] };
+
+  var STEPS_C = [
+    { line: 1, frames: [{ name: "global", vars: [] }, DEF_FRAME], heap: [defList("[]", "new")], out: [],
+      cap: "<b>Hier passiert das Entscheidende.</b> Der Standardwert <code>[]</code> wird <u>einmal</u> ausgewertet – beim <b>Definieren</b> der Funktion, nicht bei jedem Aufruf. Diese eine Liste gehört ab jetzt zur Funktion." },
+
+    { line: 5, frames: [{ name: "global", vars: [] }, DEF_FRAME], heap: [defList("[]")], out: [],
+      cap: "Das Programm startet – die Liste existiert längst." },
+
+    { line: 6, frames: [
+        { name: "global", vars: [] }, DEF_FRAME,
+        { name: "add_grade", call: true, vars: [{ n: "grade = 90", plain: true }, { n: "grades", ref: "o1" }] }
+      ], heap: [defList("[]")], out: [],
+      cap: "Erster Aufruf ohne zweites Argument: <code>grades</code> zeigt auf die Standard-Liste." },
+
+    { line: 2, frames: [
+        { name: "global", vars: [] }, DEF_FRAME,
+        { name: "add_grade", call: true, vars: [{ n: "grade = 90", plain: true }, { n: "grades", ref: "o1" }] }
+      ], heap: [defList("[90]", "changed")], out: [],
+      cap: "<code>append</code> verändert genau dieses eine Objekt – den Standardwert selbst." },
+
+    { line: 3, frames: [
+        { name: "global", vars: [] }, DEF_FRAME,
+        { name: "add_grade", call: true, vars: [{ n: "grade = 90", plain: true }, { n: "grades", ref: "o1" }] }
+      ], heap: [defList("[90]")], out: [],
+      cap: "Zurückgegeben wird eine Referenz auf dieselbe Liste." },
+
+    { line: 6, frames: [{ name: "global", vars: [] }, DEF_FRAME], heap: [defList("[90]")], out: ["[90]"],
+      cap: "Erste Ausgabe – wie erwartet." },
+
+    { line: 7, frames: [
+        { name: "global", vars: [] }, DEF_FRAME,
+        { name: "add_grade", call: true, vars: [{ n: "grade = 80", plain: true }, { n: "grades", ref: "o1" }] }
+      ], heap: [defList("[90]")], out: ["[90]"],
+      cap: "<b>Zweiter Aufruf – wieder ohne zweites Argument.</b> Es entsteht <u>keine</u> frische Liste: <code>grades</code> zeigt auf dasselbe Objekt, das die 90 noch enthält." },
+
+    { line: 2, frames: [
+        { name: "global", vars: [] }, DEF_FRAME,
+        { name: "add_grade", call: true, vars: [{ n: "grade = 80", plain: true }, { n: "grades", ref: "o1" }] }
+      ], heap: [defList("[90, 80]", "changed")], out: ["[90]"],
+      cap: "Die 80 kommt zur bereits vorhandenen 90 dazu." },
+
+    { line: 7, frames: [{ name: "global", vars: [] }, DEF_FRAME], heap: [defList("[90, 80]")], out: ["[90]", "[90, 80]"],
+      cap: "<b>Ergebnis:</b> Der zweite Aufruf liefert <code>[90, 80]</code> statt <code>[80]</code> – die Funktion merkt sich Zustand zwischen den Aufrufen. Genau deshalb <b>verbieten Dataclasses mutable Standardwerte</b> und erzwingen <code>field(default_factory=list)</code>. Bei normalen Funktionen nimmt man stattdessen <code>None</code> als Standardwert." }
+  ];
+
+  var EXAMPLES = [
+    { code: CODE_A, steps: STEPS_A },
+    { code: CODE_B, steps: STEPS_B },
+    { code: CODE_C, steps: STEPS_C }
+  ];
+
+  /* ============================================================
+     Rendering
+     ============================================================ */
+  var elCode = document.getElementById("code");
+  var elFrames = document.getElementById("frames");
+  var elHeap = document.getElementById("heap");
+  var elConsole = document.getElementById("console");
+  var elCaption = document.getElementById("caption");
+  var elCounter = document.getElementById("counter");
+  var elArrows = document.getElementById("arrows");
+  var btnPrev = document.getElementById("prev");
+  var btnNext = document.getElementById("next");
+  var btnReset = document.getElementById("reset");
+
+  var exIndex = 0, stepIndex = 0;
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function renderCode(){
+    var lines = EXAMPLES[exIndex].code, html = "";
+    for (var i = 0; i < lines.length; i++){
+      html += '<div class="ln" data-line="' + (i+1) + '">'
+            + '<span class="num">' + (i+1) + '</span>'
+            + '<span>' + (esc(lines[i]) || " ") + '</span></div>';
+    }
+    elCode.innerHTML = html;
+  }
+
+  function renderStep(){
+    var step = EXAMPLES[exIndex].steps[stepIndex];
+
+    var lns = elCode.querySelectorAll(".ln");
+    for (var i = 0; i < lns.length; i++){
+      var n = parseInt(lns[i].getAttribute("data-line"), 10);
+      lns[i].className = "ln" + (step.line === n ? " active" : "") + (step.caller === n ? " caller" : "");
+    }
+
+    var fh = "";
+    step.frames.forEach(function(f){
+      fh += '<div class="frame' + (f.call ? " call" : "") + (f.keep ? " keep" : "") + '">'
+          + '<div class="frame-name">' + esc(f.name) + (f.keep ? "" : "()") + '</div>';
+      if (!f.vars.length) fh += '<div class="frame-name" style="opacity:.5">– leer –</div>';
+      f.vars.forEach(function(v){
+        fh += '<span class="varrow"><span class="var' + (v.plain ? " plain" : "") + '"'
+            + (v.ref ? ' data-ref="' + v.ref + '"' : "") + '>' + esc(v.n) + '</span></span>';
+      });
+      fh += '</div>';
+    });
+    elFrames.innerHTML = fh;
+
+    var hh = "";
+    step.heap.forEach(function(o){
+      var flag = o.state === "new" ? '<span class="flag new">NEU</span>'
+               : o.state === "changed" ? '<span class="flag changed">GEÄNDERT</span>' : "";
+      var body = "";
+      if (o.fields){
+        o.fields.forEach(function(f){
+          body += '<span class="fld"><span class="k">' + esc(f.k) + ':</span><span class="v">' + esc(f.v) + '</span></span>';
+        });
+      } else {
+        body = '<span class="val">' + esc(o.val) + '</span>' + flag;
+      }
+      hh += '<div class="obj ' + o.kind + (o.state ? " is-" + o.state : "") + '" data-id="' + o.id + '">'
+          + '<span class="badge">' + esc(o.badge || o.kind) + '</span>'
+          + '<span class="type">' + esc(o.type) + '</span>' + body
+          + (o.fields ? flag : "")
+          + (o.note ? '<span class="note">' + esc(o.note) + '</span>' : "")
+          + '</div>';
+    });
+    if (!hh) hh = '<div class="frame-name" style="opacity:.5">– noch keine Objekte –</div>';
+    elHeap.innerHTML = hh;
+
+    elConsole.textContent = step.out.join("\n");
+    elCaption.innerHTML = step.cap;
+    elCounter.textContent = "Schritt " + stepIndex + " / " + (EXAMPLES[exIndex].steps.length - 1);
+    btnPrev.disabled = stepIndex === 0;
+    btnNext.disabled = stepIndex === EXAMPLES[exIndex].steps.length - 1;
+
+    drawArrows();
+  }
+
+  function drawArrows(){
+    var mem = elArrows.parentNode, base = mem.getBoundingClientRect();
+    elArrows.setAttribute("viewBox", "0 0 " + base.width + " " + base.height);
+
+    var defs = '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" '
+             + 'markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+             + '<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--arrow)"/></marker></defs>';
+    var paths = "";
+
+    var vars = elFrames.querySelectorAll(".var[data-ref]");
+    for (var i = 0; i < vars.length; i++){
+      var target = elHeap.querySelector('.obj[data-id="' + vars[i].getAttribute("data-ref") + '"]');
+      if (!target) continue;
+      var a = vars[i].getBoundingClientRect(), b = target.getBoundingClientRect();
+      var x1 = a.right - base.left + 2, y1 = a.top - base.top + a.height / 2;
+      var x2 = b.left - base.left - 8,  y2 = b.top - base.top + b.height / 2;
+      var mx = x1 + (x2 - x1) * 0.55;
+      paths += '<path d="M ' + x1 + ' ' + y1 + ' C ' + mx + ' ' + y1 + ', ' + mx + ' ' + y2 + ', ' + x2 + ' ' + y2
+             + '" fill="none" stroke="var(--arrow)" stroke-width="1.6" marker-end="url(#ah)" opacity="0.85"/>';
+    }
+    elArrows.innerHTML = defs + paths;
+  }
+
+  function go(d){
+    var max = EXAMPLES[exIndex].steps.length - 1;
+    stepIndex = Math.min(max, Math.max(0, stepIndex + d));
+    renderStep();
+  }
+
+  function switchExample(i){
+    exIndex = i; stepIndex = 0;
+    var tabs = document.querySelectorAll(".tabs button");
+    for (var t = 0; t < tabs.length; t++) tabs[t].className = (t === i) ? "active" : "";
+    renderCode(); renderStep();
+  }
+
+  btnNext.addEventListener("click", function(){ go(1); });
+  btnPrev.addEventListener("click", function(){ go(-1); });
+  btnReset.addEventListener("click", function(){ stepIndex = 0; renderStep(); });
+
+  var tabs = document.querySelectorAll(".tabs button");
+  for (var t = 0; t < tabs.length; t++){
+    (function(btn){
+      btn.addEventListener("click", function(){ switchExample(parseInt(btn.getAttribute("data-ex"), 10)); });
+    })(tabs[t]);
+  }
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "ArrowRight"){ go(1); e.preventDefault(); }
+    if (e.key === "ArrowLeft"){ go(-1); e.preventDefault(); }
+  });
+
+  window.addEventListener("resize", drawArrows);
+
+  switchExample(0);
+})();
+</script>
+</body>
+</html>
