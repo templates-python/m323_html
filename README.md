@@ -18,6 +18,12 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | `lu03/a01-verzeichnisbaum.html` | LU03.A01 | Rekursive Suche im Verzeichnisbaum, Schritte 1–4 der 5-Schritte-Methode |
 | `lu03/a02-zinseszins.html` | LU03.A02 | Zinseszins rekursiv, Schritte 1–4 der 5-Schritte-Methode |
 | `lu03/a07-abschreibung.html` | LU03.A07 | Abschreibung rekursiv, Schritte 1–4 der 5-Schritte-Methode |
+| `lu03/l01-verzeichnisbaum.html` | LU03.L01 | Musterlösung Verzeichnisbaum, alle 5 Schritte inkl. Code-Aufbau |
+| `lu03/l02-zinseszins.html` | LU03.L02 | Musterlösung Zinseszins, alle 5 Schritte inkl. Code-Aufbau |
+| `lu03/l07-abschreibung.html` | LU03.L07 | Musterlösung Abschreibung, alle 5 Schritte inkl. Code-Aufbau |
+
+Die `a*`-Dateien gehören auf die **Aufgabenseite** und zeigen keine Lösung, die `l*`-Dateien auf die
+**Lösungsseite** und bauen den Code in Schritt 5 Zeile für Zeile aus den erarbeiteten Regeln auf.
 
 ## GitHub Pages aktivieren
 
@@ -56,9 +62,13 @@ anpassen. Bei schmalen Fenstern klappt das Layout einspaltig um und braucht mehr
   Lernende sollen das Tempo bestimmen und Schritte vergleichen können. Ein «Abspielen»-Knopf darf
   daneben stehen (für die Vorführung im Unterricht), muss aber ausgeschaltet starten und bei jedem
   manuellen Schritt stoppen.
-* **Animationen zu Aufträgen zeigen die Lösung nicht.** Sie führen durch die Schritte 1 bis 4 der
+* **Animationen zu Aufträgen (`a*`) zeigen die Lösung nicht.** Sie führen durch die Schritte 1 bis 4 der
   5-Schritte-Methode (`lu03:rekursion2`) und halten die erkannten Regeln in Worten fest.
   Schritt 5 – die Regel als Funktion – bleibt die Aufgabe der Lernenden. Kein Lösungscode in der Datei.
+* **Animationen zu Lösungen (`l*`) zeigen alle fünf Schritte.** Schritt 5 baut den Code der Musterlösung
+  aus dem Wiki zeilenweise auf; jede Zeile wird auf die Regel zurückgeführt, aus der sie stammt.
+  Der Code muss mit der Lösungsseite im Wiki übereinstimmen, und die gezeigte Ausgabe mit `repr()`
+  aus echtem Python – auch die Float-Artefakte.
 * Jeder Schritt hat einen erklärenden Satz; der didaktisch entscheidende Schritt wird
   explizit als solcher markiert.
 * Neue Datei in `index.html` und in der Tabelle oben ergänzen.

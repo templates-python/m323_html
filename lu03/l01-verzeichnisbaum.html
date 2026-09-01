@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU03.L01 – Verzeichnisbaum: von der Regel zum Code</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4; --panel:#f6f8fa;
+  --hl:#fff3c4; --hl-border:#e5b800;
+  --accent:#0b62c4; --accent-soft:#e7f0fb;
+  --new:#0a7d55; --new-soft:#e4f5ee;
+  --warn:#b3541e; --warn-soft:#fbeee4;
+  --console-bg:#20262c; --console-fg:#e6edf3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d; --panel:#1c2229;
+    --hl:#3d3413; --hl-border:#b79600;
+    --accent:#65a9f5; --accent-soft:#1d2c3d;
+    --new:#4fc99a; --new-soft:#16302a;
+    --warn:#e79465; --warn-soft:#33231a;
+    --console-bg:#0d1117; --console-fg:#e6edf3;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:14px;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5;
+}
+.app{max-width:1020px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;line-height:1.3}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 0;max-width:64ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-radius:999px;font-size:13px;padding:6px 12px;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.tabs button:hover{border-color:var(--accent);color:var(--accent)}
+.tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+.tabs button.past{color:var(--new);border-color:var(--new)}
+
+.main{display:grid;grid-template-columns:minmax(300px,1.05fr) minmax(290px,.95fr);gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.hidden{display:none}
+
+/* Baum */
+.tree{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.65;
+  min-height:250px;overflow-x:auto}
+.kids{margin-left:12px;padding-left:12px;border-left:1px solid var(--line)}
+.node{display:flex;align-items:center;gap:7px;padding:2px 7px;margin:1px 0;border-radius:5px;
+  border:1px solid transparent;width:-moz-fit-content;width:fit-content;color:var(--muted);
+  transition:background .25s,color .25s,border-color .25s,opacity .25s,transform .25s}
+.node .m{width:8px;height:8px;flex:none;border:1.5px solid var(--muted);transition:all .25s}
+.node.dir .m{border-radius:2px;transform:rotate(45deg)}
+.node.file .m{border-radius:50%}
+.node.out{opacity:.15}
+.node.call{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);transform:translateX(4px)}
+.node.call .m{border-color:var(--accent);background:var(--accent)}
+.node.solved{background:var(--new-soft);border-color:var(--new);color:var(--new);transform:translateX(4px)}
+.node.solved .m{border-color:var(--new);background:var(--new)}
+.node.pathup{background:var(--new-soft);border-color:var(--new);color:var(--new)}
+.node.pathup .m{border-color:var(--new)}
+.node.dup{color:var(--muted);opacity:.5}
+.node.grpA{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.node.grpB{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+
+/* Code */
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.65;
+  margin:0;min-height:250px;overflow-x:auto;white-space:pre}
+.code .ln{display:block;padding:0 6px 0 0;border-left:3px solid transparent;border-radius:0 3px 3px 0;
+  transition:background .25s,border-color .25s,opacity .3s}
+.code .ln .num{display:inline-block;width:24px;text-align:right;margin-right:10px;color:var(--muted);opacity:.55;
+  -webkit-user-select:none;user-select:none}
+.code .ln.hidden{display:none}
+.code .ln.is-new{background:var(--new-soft);border-left-color:var(--new)}
+.code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .cm{color:var(--muted)}
+.console{margin-top:9px;background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+  padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:34px}
+.console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+/* Seitenpanel */
+.mem{display:flex;flex-direction:column;gap:6px;min-height:250px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.stack{display:flex;flex-direction:column-reverse;gap:5px}
+.frame{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--bg);
+  border-radius:5px;padding:5px 8px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.frame.hot{background:var(--accent-soft)}
+.frame.solved{border-left-color:var(--new);background:var(--new-soft);color:var(--new)}
+.frame .ret{color:var(--muted);font-size:11.5px}
+.frame.solved .ret{color:var(--new)}
+.slot{border:1px solid var(--line);background:var(--bg);border-radius:5px;padding:6px 9px;color:var(--muted)}
+.slot .lbl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:2px}
+.slot.is-new{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.slot.dup{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.slot.open{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.slot b{font-weight:600}
+.stack-empty{color:var(--muted);opacity:.7;font-style:italic}
+
+.caption{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 6px 6px 0;padding:9px 12px;font-size:14px;min-height:62px}
+.caption code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.tally{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px 12px}
+.tally .t{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.row{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+  border-left:3px solid var(--new);background:var(--new-soft);border-radius:0 5px 5px 0;
+  padding:5px 9px;margin-bottom:5px;color:var(--fg)}
+.row b{color:var(--new)}
+.row.used{border-left-color:var(--accent);background:var(--accent-soft)}
+.row.used b{color:var(--accent)}
+.row.none{border-left-color:var(--line);background:transparent;color:var(--muted);font-style:italic}
+
+.controls{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls button{border-radius:6px;font-size:13.5px;font-weight:600;padding:8px 16px;background:var(--panel);
+  border:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.controls button:hover{border-color:var(--accent);color:var(--accent)}
+.controls button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+.controls button#next{background:var(--accent);color:#fff;border-color:var(--accent)}
+.controls button#next:hover{opacity:.9;color:#fff}
+.controls button#play{min-width:112px}
+.counter{font-size:12.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hint{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.note{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13.5px;color:var(--muted)}
+.note b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:4px}
+.note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+@media (max-width:780px){ .main{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition-duration:.01ms !important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div>
+      <h1>Verzeichnisbaum: von der Regel zum Code</h1>
+      <p class="sub">Die Musterlösung zu LU03.A01, erarbeitet über alle fünf Schritte der Methode.
+      Die Schritte 1 bis 4 finden die Regel, Schritt 5 setzt daraus Zeile für Zeile die Funktion zusammen
+      und lässt sie laufen.</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2 id="lefttitle">Verzeichnisbaum</h2>
+      <div class="tree" id="tree"></div>
+      <pre class="code hidden" id="code"></pre>
+      <div class="console hidden" id="console"></div>
+    </div>
+    <div class="panel">
+      <h2 id="memtitle">Beobachtung</h2>
+      <div class="mem" id="mem"></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="tally">
+    <div class="t">Erkannte Regeln</div>
+    <div id="rules"></div>
+  </div>
+
+  <div class="controls">
+    <button id="play">▶ Abspielen</button>
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen, mit der Leertaste abspielen und pausieren.</div>
+
+  <div class="note"><b>Hinweis zur Lösung</b>
+  Die Funktion prüft mit <code>if path:</code> statt <code>if path is not None:</code>. Das funktioniert hier,
+  weil ein gefundener Pfad nie der leere String ist – bei anderen Rückgabewerten (etwa <code>0</code>)
+  wäre der Unterschied entscheidend.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TARGET = "config.yaml";
+
+  var tree = {id:"root",name:"root",type:"dir",path:"/",children:[
+    {id:"home",name:"home",type:"dir",path:"/home",children:[
+      {id:"user",name:"user",type:"dir",path:"/home/user",children:[
+        {id:"f1",name:"file1.txt",type:"file",path:"/home/user/file1.txt"},
+        {id:"f2",name:"file2.txt",type:"file",path:"/home/user/file2.txt"}]},
+      {id:"rd",name:"readme.md",type:"file",path:"/home/readme.md"}]},
+    {id:"etc",name:"etc",type:"dir",path:"/etc",children:[
+      {id:"cy",name:"config.yaml",type:"file",path:"/etc/config.yaml"},
+      {id:"ng",name:"nginx",type:"dir",path:"/etc/nginx",children:[
+        {id:"nc",name:"nginx.conf",type:"file",path:"/etc/nginx/nginx.conf"},
+        {id:"se",name:"sites-enabled",type:"dir",path:"/etc/nginx/sites-enabled",children:[
+          {id:"df",name:"default",type:"file",path:"/etc/nginx/sites-enabled/default"}]}]}]}]};
+
+  var treeEl = document.getElementById("tree"), nodeEls = {}, allIds = [];
+  function draw(n, parent){
+    var el = document.createElement("div");
+    el.className = "node " + (n.type === "dir" ? "dir" : "file");
+    el.setAttribute("data-kind", n.type === "dir" ? "dir" : "file");
+    el.innerHTML = '<span class="m"></span><span>' + n.name + (n.type === "dir" ? "/" : "") + '</span>';
+    parent.appendChild(el);
+    nodeEls[n.id] = el; allIds.push(n.id);
+    if(n.children && n.children.length){
+      var k = document.createElement("div"); k.className = "kids"; parent.appendChild(k);
+      for(var i = 0; i < n.children.length; i++) draw(n.children[i], k);
+    }
+  }
+  draw(tree, treeEl);
+
+  /* ---- Code der Musterlösung ---- */
+  var CODE = [
+    "def find_file(name, directory):",
+    "    <span class=\"cm\"># Base Case: Wenn die Datei im aktuellen Verzeichnis gefunden wird</span>",
+    "    if directory['type'] == 'file' and directory['name'] == name:",
+    "        return directory['path']",
+    "",
+    "    <span class=\"cm\"># Wenn das Verzeichnis Kinder hat, durchlaufe sie</span>",
+    "    if directory['type'] == 'directory' and 'children' in directory:",
+    "        for child in directory['children']:",
+    "            path = find_file(name, child)  <span class=\"cm\"># Rekursiver Aufruf</span>",
+    "            if path:  <span class=\"cm\"># Wenn der Pfad gefunden wurde, gebe ihn zurück</span>",
+    "                return path",
+    "",
+    "    return None  <span class=\"cm\"># Wenn die Datei nicht gefunden wird</span>"
+  ];
+  var codeEl = document.getElementById("code"), lineEls = [];
+  for(var ci = 0; ci < CODE.length; ci++){
+    var s = document.createElement("span");
+    s.className = "ln hidden";
+    s.innerHTML = '<span class="num">' + (ci + 1) + '</span>' + CODE[ci];
+    codeEl.appendChild(s); lineEls.push(s);
+  }
+
+  var TABS = ["1 · Base Case","2 · Herumspielen","3 · Vergleichen","4 · Generalisieren","5 · Code bauen"];
+
+  var RULES = [
+    "<b>Base Case A:</b> Datei, Name stimmt &rarr; Pfad zurückgeben.",
+    "<b>Base Case B:</b> Datei, Name stimmt nicht &rarr; nichts zurückgeben.",
+    "<b>Zerlegung:</b> Einen Ordner durchsuchen = jedes Kind durchsuchen. Gleiche Aufgabe, kleiner.",
+    "<b>Muster:</b> Liefert ein Kind einen Pfad, sofort weitergeben. Liefert keines etwas, gibt auch der Ordner nichts zurück."
+  ];
+
+  var steps = [];
+  function pace(d){
+    d = Math.round((d || 3000) * 0.55);
+    if(d < 1100) d = 1100;
+    if(d > 3200) d = 3200;
+    return d;
+  }
+  function snap(o){
+    steps.push({
+      ph:o.ph, view:o.view || "tree", focus:o.focus || null, st:o.st || {},
+      show:o.show || 0, act:o.act || null, out:o.out || "",
+      lefttitle:o.lefttitle || (o.view === "code" ? "Musterlösung" : "Verzeichnisbaum"),
+      memtitle:o.memtitle || "Beobachtung", mem:o.mem || "",
+      cap:o.cap, rules:o.rules || 0, used:o.used || 0, dur:pace(o.dur)
+    });
+  }
+
+  /* ============ Schritt 1 ============ */
+  snap({ph:0,dur:3800,focus:["cy"],st:{cy:""},memtitle:"Einfachster Fall",
+    mem:'<div class="slot open"><span class="lbl">Frage</span>Was ist der kleinste Fall, den du <b>ohne jede Suche</b> beantworten kannst?</div>',
+    cap:"Schritt 1 der Methode. Bevor die Suche im ganzen Baum gedacht wird: Was ist der einfachste Input? Nicht ein Ordner – sondern ein einzelnes Element."});
+  snap({ph:0,dur:4400,focus:["cy"],st:{cy:"solved"},memtitle:"Einfachster Fall",
+    mem:'<div class="slot is-new"><span class="lbl">Fall A</span>Element ist eine <b>Datei</b> und der Name stimmt<br>&rarr; Antwort steht sofort fest: <b>/etc/config.yaml</b></div>',
+    cap:"<b>Fall A:</b> Das Element ist eine Datei und heisst genau wie die gesuchte. Dann ist die Antwort ihr Pfad – ohne einen einzigen weiteren Aufruf.",rules:1});
+  snap({ph:0,dur:4400,focus:["nc"],st:{nc:"dup"},memtitle:"Einfachster Fall",
+    mem:'<div class="slot is-new"><span class="lbl">Fall A</span>Datei, Name stimmt &rarr; Pfad</div>'+
+        '<div class="slot dup"><span class="lbl">Fall B</span>Datei, Name stimmt <b>nicht</b> &rarr; nichts</div>',
+    cap:"<b>Fall B:</b> Eine Datei mit anderem Namen. Auch hier steht die Antwort sofort fest – nur eben eine leere. Diese beiden Fälle beenden die Rekursion.",rules:2});
+
+  /* ============ Schritt 2 ============ */
+  var HOME = ["home","user","f1","f2","rd"];
+  snap({ph:1,dur:4000,focus:HOME,st:{home:"call"},memtitle:"Suche von Hand",
+    mem:'<div class="slot open"><span class="lbl">Von Hand</span>Du öffnest <b>/home</b> und schaust hinein. Was tust du als Nächstes?</div>',
+    cap:"Schritt 2: von Hand ausprobieren. Nimm nur den Teilbaum <code>/home</code> und suche <code>config.yaml</code> so, wie du es am Computer tun würdest.",rules:2});
+  var walk = [["user","Ordner <b>user</b> &rarr; hineingehen und dort neu anfangen","open","call"],
+              ["f1","<b>file1.txt</b> – Name vergleichen &rarr; nein","dup","dup"],
+              ["f2","<b>file2.txt</b> – Name vergleichen &rarr; nein","dup","dup"],
+              ["rd","<b>readme.md</b> – Name vergleichen &rarr; nein","dup","dup"]];
+  var trace = "";
+  for(var w = 0; w < walk.length; w++){
+    trace += '<div class="slot ' + walk[w][2] + '">' + walk[w][1] + '</div>';
+    var st = {home:"call"};
+    for(var j = 0; j < w; j++) st[walk[j][0]] = walk[j][3] === "call" ? "pathup" : "dup";
+    st[walk[w][0]] = walk[w][3];
+    snap({ph:1,dur:2200,focus:HOME,st:st,memtitle:"Suche von Hand",mem:trace,rules:2,
+      cap: w === 0
+        ? "Ein Ordner im Ordner: du gehst hinein und machst dort <b>genau dasselbe</b> wie im Ordner darüber."
+        : "Name vergleichen, weiter zum nächsten Element. Immer derselbe Handgriff."});
+  }
+  snap({ph:1,dur:4600,focus:HOME,st:{home:"dup",user:"dup",f1:"dup",f2:"dup",rd:"dup"},memtitle:"Suche von Hand",
+    mem:trace + '<div class="slot is-new"><span class="lbl">Beobachtung</span>Du hast immer nur zwei Dinge getan: <b>Namen vergleichen</b> oder <b>in einen Ordner hineingehen und dort neu anfangen</b>.</div>',
+    cap:"In <code>/home</code> ist nichts. Wichtiger als das Ergebnis ist die Beobachtung: die ganze Suche brauchte nur zwei verschiedene Handgriffe.",rules:2});
+
+  /* ============ Schritt 3 ============ */
+  var ETC = ["etc","cy","ng","nc","se","df"];
+  snap({ph:2,dur:4200,focus:ETC,st:{etc:"grpA",cy:"grpA",ng:"grpA",nc:"grpA",se:"grpA",df:"grpA"},
+    memtitle:"Gross gegen klein",
+    mem:'<div class="slot open"><span class="lbl">Schwieriger Fall</span>Durchsuche <b>/etc</b> – fünf Elemente, drei Ebenen tief.</div>',
+    cap:"Schritt 3: den schwierigen Fall mit einem einfacheren vergleichen. Der schwierige Fall ist der ganze Ordner <code>/etc</code>.",rules:2});
+  snap({ph:2,dur:4800,focus:ETC,st:{etc:"grpA",cy:"grpA",ng:"grpB",nc:"grpB",se:"grpB",df:"grpB"},
+    memtitle:"Gross gegen klein",
+    mem:'<div class="slot open"><span class="lbl">Schwieriger Fall</span>Durchsuche <b>/etc</b></div>'+
+        '<div class="slot dup"><span class="lbl">Einfacherer Fall</span>Durchsuche <b>/etc/nginx</b> – steckt im grossen Fall drin</div>',
+    cap:"Darin steckt <code>/etc/nginx</code> – dieselbe Aufgabe, nur mit weniger Inhalt. Der schwierige Fall <b>enthält</b> den einfacheren.",rules:2});
+  snap({ph:2,dur:5400,focus:ETC,st:{etc:"grpA",cy:"grpA",ng:"grpB",nc:"grpB",se:"grpB",df:"grpB"},
+    memtitle:"Gross gegen klein",
+    mem:'<div class="slot open"><span class="lbl">Schwieriger Fall</span>Durchsuche <b>/etc</b></div>'+
+        '<div class="slot dup"><span class="lbl">Einfacherer Fall</span>Durchsuche <b>/etc/nginx</b></div>'+
+        '<div class="slot is-new"><span class="lbl">Beziehung</span>Gleiche Aufgabe, kleinerer Baum. In <b>/etc/nginx</b> steckt wieder <b>sites-enabled</b> – so lange, bis nur noch Dateien übrig sind.</div>',
+    cap:"Das ist die Beziehung, die Rekursion möglich macht: die Aufgabe im Unterordner ist <b>identisch</b> zur Aufgabe im Elternordner – nur kleiner. Sie schrumpft so lange, bis der Base Case aus Schritt 1 greift.",rules:3});
+
+  /* ============ Schritt 4 ============ */
+  var status = {}, stack = [];
+  for(var a = 0; a < allIds.length; a++) status[allIds[a]] = "";
+  function stackHtml(){
+    if(!stack.length) return '<div class="stack-empty">Kein laufender Aufruf.</div>';
+    var h = '<div class="stack">', k;
+    for(k = 0; k < stack.length; k++){
+      h += '<div class="frame ' + (k === stack.length - 1 ? stack[k].state : "") + '">' +
+           '<span>' + stack[k].label + '</span><span class="ret">&rarr; ' + stack[k].ret + '</span></div>';
+    }
+    return h + '</div>';
+  }
+  function copyStatus(){
+    var c = {}, k;
+    for(k in status) if(status.hasOwnProperty(k)) c[k] = status[k];
+    return c;
+  }
+  function snap4(cap, dur, rules){
+    snap({ph:3,dur:dur || 1900,st:copyStatus(),
+      memtitle:"Aufrufe · Tiefe " + stack.length, mem:stackHtml(), cap:cap, rules:rules || 3});
+  }
+
+  snap({ph:3,dur:4800,st:copyStatus(),memtitle:"Das Muster",
+    mem:'<div class="slot open"><span class="lbl">Muster in Worten</span>Nimm ein Element.<br>Ist es eine <b>Datei</b> &rarr; Base Case aus Schritt 1.<br>Ist es ein <b>Ordner</b> &rarr; wende dasselbe Vorgehen auf jedes Kind an.</div>',
+    cap:"Schritt 4: das Muster verallgemeinern. Aus den zwei Handgriffen wird eine Regel, die für <b>jedes</b> Element gilt – egal ob root oder ein Ordner ganz unten.",rules:3});
+
+  function search(node){
+    stack.push({label:"suche in " + node.name + (node.type === "dir" ? "/" : ""), ret:"…", state:"hot"});
+    status[node.id] = "call";
+    snap4("Die Regel wird auf <code>" + node.name + "</code> angewendet. Jede Anwendung merkt sich, wo sie stehen geblieben ist – darum der Stapel rechts.", 2100);
+    if(node.type === "file"){
+      if(node.name === TARGET){
+        status[node.id] = "solved";
+        stack[stack.length - 1].ret = node.path; stack[stack.length - 1].state = "solved";
+        snap4("<b>Base Case A aus Schritt 1.</b> Datei, Name stimmt &rarr; der Pfad steht fest. Hier hört das Absteigen auf.", 4000);
+        stack.pop(); return node.path;
+      }
+      status[node.id] = "dup";
+      stack[stack.length - 1].ret = "nichts"; stack[stack.length - 1].state = "solved";
+      snap4("<b>Base Case B.</b> <code>" + node.name + "</code> passt nicht &rarr; nichts zurück, Rahmen vom Stapel.", 1600);
+      stack.pop(); return null;
+    }
+    for(var c = 0; c < node.children.length; c++){
+      var path = search(node.children[c]);
+      if(path !== null){
+        status[node.id] = "pathup";
+        stack[stack.length - 1].ret = path; stack[stack.length - 1].state = "solved";
+        snap4("Aus einem Kind kam ein Pfad &rarr; <code>" + node.name + "</code> hört sofort auf zu suchen und reicht ihn unverändert nach oben.", 2800, 4);
+        stack.pop(); return path;
+      }
+      snap4("Von diesem Kind kam nichts – weiter zum nächsten Kind von <code>" + node.name + "</code>.", 1500);
+    }
+    status[node.id] = "dup";
+    stack[stack.length - 1].ret = "nichts"; stack[stack.length - 1].state = "solved";
+    snap4("Alle Kinder von <code>" + node.name + "</code> geprüft, nirgends ein Treffer &rarr; auch dieser Ordner gibt nichts zurück.", 2100);
+    stack.pop(); return null;
+  }
+  var finalPath = search(tree);
+  snap({ph:3,dur:5000,st:copyStatus(),memtitle:"Ergebnis",
+    mem:'<div class="slot is-new"><span class="lbl">Rückgabe des ersten Aufrufs</span><b>' + finalPath + '</b></div>',
+    cap:"<b>" + finalPath + "</b> wurde tief unten gefunden und Rahmen für Rahmen zurückgereicht. Base Case und Muster stehen fest – jetzt fehlt nur noch die Übersetzung in Code.",rules:4});
+
+  /* ============ Schritt 5: Code bauen ============ */
+  function snap5(o){
+    snap({ph:4,view:"code",dur:o.dur || 3400,show:o.show,act:o.act || null,out:o.out || "",
+      lefttitle:o.lefttitle || "Musterlösung entsteht",
+      memtitle:o.memtitle || "Woraus die Zeilen kommen", mem:o.mem, cap:o.cap, rules:4, used:o.used || 0});
+  }
+
+  snap5({show:1,dur:4200,used:0,
+    mem:'<div class="slot open"><span class="lbl">Schritt 5</span>Muster mit Base Case kombinieren.<br>Die vier Regeln von unten werden der Reihe nach zu Code.</div>',
+    cap:"Schritt 5: die erarbeiteten Regeln in eine Funktion giessen. Sie bekommt genau die zwei Angaben, die jede Anwendung der Regel braucht – den gesuchten Namen und das aktuelle Element."});
+
+  snap5({show:4,dur:4800,used:2,
+    mem:'<div class="slot is-new"><span class="lbl">Aus Regel 1 und 2</span>Datei + Name stimmt &rarr; Pfad.<br>Datei + Name stimmt nicht &rarr; nichts.</div>'+
+        '<div class="slot"><span class="lbl">Im Code</span>Nur Fall A braucht ein <b>return</b>. Fall B ergibt sich von selbst, weil die Funktion unten mit <b>None</b> endet.</div>',
+    cap:"<b>Base Case zuerst.</b> Die beiden Fälle aus Schritt 1 werden zu einer einzigen Bedingung: Datei und passender Name &rarr; Pfad zurückgeben. Steht diese Prüfung nicht zuoberst, läuft die Rekursion weiter, obwohl die Antwort längst feststeht."});
+
+  snap5({show:8,dur:5200,used:3,
+    mem:'<div class="slot is-new"><span class="lbl">Aus Regel 3</span>Einen Ordner durchsuchen = jedes Kind durchsuchen.</div>'+
+        '<div class="slot"><span class="lbl">Im Code</span>Die Schleife über <b>children</b>, und darin der Aufruf der Funktion <b>auf sich selbst</b> – mit dem Kind statt dem Ordner.</div>',
+    cap:"<b>Der Rekursionsschritt.</b> Regel 3 aus Schritt 3 wird zur Schleife über die Kinder – und der rekursive Aufruf ist wörtlich dieselbe Funktion, nur mit einem kleineren Element."});
+
+  snap5({show:11,dur:5200,used:4,
+    mem:'<div class="slot is-new"><span class="lbl">Aus Regel 4</span>Kommt aus einem Kind ein Pfad, sofort weitergeben.</div>'+
+        '<div class="slot"><span class="lbl">Im Code</span>Ohne dieses <b>return</b> würde die Schleife weiterlaufen und das Ergebnis verlieren.</div>',
+    cap:"<b>Das Ergebnis weiterreichen.</b> Genau die Stelle, an der in Schritt 4 der Pfad nach oben gewandert ist. Fehlt sie, sucht die Funktion brav weiter und gibt am Ende trotzdem <code>None</code> zurück."});
+
+  snap5({show:13,dur:5000,used:4,
+    mem:'<div class="slot is-new"><span class="lbl">Aus Regel 2 und 4</span>Nichts gefunden &rarr; nichts zurückgeben.</div>'+
+        '<div class="slot"><span class="lbl">Im Code</span>Diese letzte Zeile deckt <b>beide</b> Fälle ab: falsche Datei und leer durchsuchter Ordner.</div>',
+    cap:"<b>Der Abschluss.</b> Wer bis hierher kommt, hat nichts gefunden – egal ob er eine falsche Datei war oder ein Ordner, dessen Kinder alle nichts geliefert haben. Die Funktion ist damit vollständig."});
+
+  snap5({show:13,act:[0],dur:3600,lefttitle:"Musterlösung läuft",
+    mem:'<div class="slot open"><span class="lbl">Probelauf</span>find_file(\'config.yaml\', directory_tree)</div>',
+    cap:"Probelauf mit dem Baum aus der Aufgabe. Die gelbe Markierung zeigt, welche Zeile gerade dran ist."});
+  snap5({show:13,act:[6,7,8],dur:3800,lefttitle:"Musterlösung läuft",
+    mem:'<div class="slot open"><span class="lbl">Probelauf</span>root ist ein Verzeichnis</div>'+
+        '<div class="slot"><span class="lbl">Stapel</span>Der Aufruf für <b>home</b> wird gestartet, root wartet.</div>',
+    cap:"<code>root</code> ist kein Treffer, also greift die Schleife: der erste rekursive Aufruf geht auf <code>home</code> – und root wartet, bis der fertig ist."});
+  snap5({show:13,act:[2,3],dur:4200,lefttitle:"Musterlösung läuft",
+    mem:'<div class="slot is-new"><span class="lbl">Base Case</span>config.yaml stimmt &rarr; <b>/etc/config.yaml</b></div>',
+    cap:"Nach den erfolglosen Zweigen erreicht die Suche <code>/etc/config.yaml</code>. Der Base Case greift und gibt den Pfad zurück."});
+  snap5({show:13,act:[9,10],dur:4200,lefttitle:"Musterlösung läuft",
+    mem:'<div class="slot is-new"><span class="lbl">Weitergabe</span>Jede wartende Ebene gibt den Pfad sofort weiter.</div>',
+    cap:"Und hier arbeitet Regel 4: jede wartende Ebene sieht einen Pfad, bricht ihre Schleife ab und reicht ihn weiter – bis hinauf zum ersten Aufruf."});
+  snap5({show:13,act:null,out:"/etc/config.yaml",dur:6000,lefttitle:"Musterlösung",
+    memtitle:"Fertig",
+    mem:'<div class="slot is-new"><span class="lbl">Ausgabe</span><b>/etc/config.yaml</b></div>'+
+        '<div class="slot"><span class="lbl">Alle fünf Schritte</span>Base Case, Handgriffe, Beziehung, Muster – und daraus der Code. Keine Zeile ist geraten.</div>',
+    cap:"<b>Fertig.</b> Jede Zeile der Lösung lässt sich auf eine Regel aus den Schritten 1 bis 4 zurückführen. Genau das macht die Methode: sie ersetzt Ausprobieren durch Herleiten."});
+
+  /* ---------- Darstellung ---------- */
+  var tabsEl = document.getElementById("tabs"), tabBtns = [], t;
+  for(t = 0; t < TABS.length; t++){
+    (function(idx){
+      var b = document.createElement("button");
+      b.appendChild(document.createTextNode(TABS[idx]));
+      b.onclick = function(){
+        setPlay(false);
+        for(var s = 0; s < steps.length; s++){ if(steps[s].ph === idx){ i = s; render(); return; } }
+      };
+      tabsEl.appendChild(b); tabBtns.push(b);
+    })(t);
+  }
+
+  var memEl = document.getElementById("mem"), memT = document.getElementById("memtitle"),
+      leftT = document.getElementById("lefttitle"), consEl = document.getElementById("console"),
+      capEl = document.getElementById("caption"), rulesEl = document.getElementById("rules"),
+      cntEl = document.getElementById("counter"), playBtn = document.getElementById("play"),
+      prevBtn = document.getElementById("prev"), nextBtn = document.getElementById("next");
+  var i = 0, playing = false, timer = null, prevShow = 0;
+
+  function indexOf(arr, v){ for(var k = 0; k < arr.length; k++) if(arr[k] === v) return k; return -1; }
+
+  function render(){
+    var s = steps[i], k, id, el, cls;
+
+    if(s.view === "code"){
+      treeEl.className = "tree hidden";
+      codeEl.className = "code";
+      consEl.className = "console" + (s.out ? "" : " hidden");
+      consEl.innerHTML = s.out ? "&gt;&gt;&gt; " + s.out : "";
+      /* nur die Zeilen markieren, die in diesem Schritt neu dazugekommen sind */
+      var before = 0;
+      for(k = i - 1; k >= 0; k--){ if(steps[k].ph === 4){ before = steps[k].show; break; } }
+      for(k = 0; k < lineEls.length; k++){
+        cls = "ln";
+        if(k >= s.show) cls += " hidden";
+        else if(s.act && indexOf(s.act, k) > -1) cls += " active";
+        else if(k >= before && s.show > before) cls += " is-new";
+        lineEls[k].className = cls;
+      }
+    } else {
+      treeEl.className = "tree";
+      codeEl.className = "code hidden";
+      consEl.className = "console hidden";
+      for(k = 0; k < allIds.length; k++){
+        id = allIds[k]; el = nodeEls[id];
+        cls = "node " + el.getAttribute("data-kind");
+        if(s.focus && indexOf(s.focus, id) === -1) cls += " out";
+        else if(s.st[id]) cls += " " + s.st[id];
+        el.className = cls;
+      }
+    }
+
+    leftT.innerHTML = s.lefttitle;
+    memEl.innerHTML = s.mem; memT.innerHTML = s.memtitle;
+    capEl.innerHTML = s.cap;
+    if(s.rules){
+      var h = "";
+      for(k = 0; k < s.rules; k++) h += '<div class="row' + (k < s.used ? " used" : "") + '">' + RULES[k] + '</div>';
+      rulesEl.innerHTML = h;
+    } else {
+      rulesEl.innerHTML = '<div class="row none">Noch nichts erkannt – das kommt in Schritt 1.</div>';
+    }
+    for(k = 0; k < tabBtns.length; k++){
+      tabBtns[k].className = (k === s.ph) ? "active" : (k < s.ph ? "past" : "");
+    }
+    cntEl.innerHTML = "Schritt " + (i + 1) + " / " + steps.length;
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === steps.length - 1);
+  }
+  function schedule(){
+    if(timer) clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(function(){
+      if(i < steps.length - 1){ i++; render(); schedule(); }
+      else { playing = false; playBtn.innerHTML = "▶ Abspielen"; }
+    }, steps[i].dur);
+  }
+  function setPlay(v){
+    playing = v;
+    playBtn.innerHTML = v ? "❚❚ Pause" : "▶ Abspielen";
+    if(v){ if(i >= steps.length - 1){ i = 0; render(); } schedule(); }
+    else if(timer) clearTimeout(timer);
+  }
+  playBtn.onclick = function(){ setPlay(!playing); };
+  nextBtn.onclick = function(){ setPlay(false); if(i < steps.length - 1){ i++; render(); } };
+  prevBtn.onclick = function(){ setPlay(false); if(i > 0){ i--; render(); } };
+  document.getElementById("reset").onclick = function(){ setPlay(false); i = 0; render(); };
+  document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowRight"){ setPlay(false); if(i < steps.length - 1){ i++; render(); } }
+    if(e.key === "ArrowLeft"){ setPlay(false); if(i > 0){ i--; render(); } }
+    if(e.key === " "){ e.preventDefault(); setPlay(!playing); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
