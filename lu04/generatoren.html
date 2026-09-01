@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU04h – Generatoren: wann wird eigentlich gerechnet?</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4; --panel:#f6f8fa;
+  --hl:#fff3c4; --hl-border:#e5b800;
+  --accent:#0b62c4; --accent-soft:#e7f0fb;
+  --new:#0a7d55; --new-soft:#e4f5ee;
+  --warn:#b3541e; --warn-soft:#fbeee4;
+  --console-bg:#20262c; --console-fg:#e6edf3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d; --panel:#1c2229;
+    --hl:#3d3413; --hl-border:#b79600;
+    --accent:#65a9f5; --accent-soft:#1d2c3d;
+    --new:#4fc99a; --new-soft:#16302a;
+    --warn:#e79465; --warn-soft:#33231a;
+    --console-bg:#0d1117; --console-fg:#e6edf3;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5}
+.app{max-width:1020px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;line-height:1.3}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 0;max-width:62ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-radius:999px;font-size:13px;padding:6px 12px;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.tabs button:hover{border-color:var(--accent);color:var(--accent)}
+.tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(300px,1.1fr) minmax(280px,.9fr);gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.hidden{display:none}
+
+/* Code */
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;
+  margin:0;min-height:196px;overflow-x:auto;white-space:pre}
+.code .ln{display:block;padding:0 6px 0 0;border-left:3px solid transparent;border-radius:0 3px 3px 0;
+  transition:background .25s,border-color .25s}
+.code .ln .num{display:inline-block;width:22px;text-align:right;margin-right:9px;color:var(--muted);opacity:.55;
+  -webkit-user-select:none;user-select:none}
+.code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .ln.paused{background:var(--accent-soft);border-left-color:var(--accent)}
+.code .ln.dead{opacity:.4}
+.code .cm{color:var(--muted)}
+.marker{color:var(--accent);font-weight:600}
+.console{margin-top:9px;background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+  padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:56px;
+  white-space:pre-wrap}
+.console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+/* Zustand */
+.state{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;
+  padding:6px 9px;background:var(--bg);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;color:var(--muted);margin-bottom:8px;transition:all .25s}
+.state .d{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;transition:all .25s}
+.state.neu{border-color:var(--muted)}
+.state.run{border-color:var(--hl-border);background:var(--hl);color:var(--fg)}
+.state.run .d{background:var(--hl-border)}
+.state.pause{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.state.pause .d{background:var(--accent)}
+.state.done{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.state.done .d{background:var(--warn)}
+
+.mem{display:flex;flex-direction:column;gap:6px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.slot{border:1px solid var(--line);background:var(--bg);border-radius:5px;padding:6px 9px;color:var(--muted)}
+.slot .lbl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:2px}
+.slot.is-new{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.slot.open{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.slot.dup{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.slot b{font-weight:600}
+.vars{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.var{border:1px solid var(--line);border-radius:5px;padding:3px 8px;background:var(--bg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--fg);
+  transition:all .25s}
+.var.chg{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.var i{font-style:normal;color:var(--muted)}
+.var.chg i{color:var(--new)}
+
+/* Werte-Streifen */
+.strip{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+.cell{border:1px solid var(--line);border-radius:5px;padding:4px 9px;background:var(--bg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);
+  transition:all .3s}
+.cell.made{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.cell.now{border-color:var(--hl-border);background:var(--hl);color:var(--fg)}
+.cell.gone{opacity:.35;text-decoration:line-through}
+.cell.ghost{border-style:dashed;color:var(--muted);opacity:.7}
+
+.caption{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 6px 6px 0;padding:9px 12px;font-size:14px;min-height:62px}
+.caption code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.controls{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls button{border-radius:6px;font-size:13.5px;font-weight:600;padding:8px 16px;background:var(--panel);
+  border:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.controls button:hover{border-color:var(--accent);color:var(--accent)}
+.controls button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+.controls button#next{background:var(--accent);color:#fff;border-color:var(--accent)}
+.controls button#next:hover{opacity:.9;color:#fff}
+.controls button#play{min-width:112px}
+.counter{font-size:12.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hint{margin-top:8px;font-size:12.5px;color:var(--muted)}
+@media (max-width:780px){ .main{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition-duration:.01ms !important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div>
+      <h1>Generatoren: wann wird eigentlich gerechnet?</h1>
+      <p class="sub">Eine normale Funktion läuft von oben bis unten durch. Ein Generator hält bei jedem
+      <code>yield</code> an und macht beim nächsten <code>next()</code> genau dort weiter. Diese Animation zeigt,
+      wo er anhält und was dabei im Speicher stehen bleibt.</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2 id="codetitle">Generator-Funktion</h2>
+      <pre class="code" id="code"></pre>
+      <div class="console" id="console"></div>
+    </div>
+    <div class="panel">
+      <h2 id="memtitle">Zustand des Generators</h2>
+      <div class="state" id="state"><span class="d"></span><span id="statetext">–</span></div>
+      <div class="mem" id="mem"></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="play">▶ Abspielen</button>
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen, mit der Leertaste abspielen und pausieren.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= Beispiel 1: Generator-Funktion ================= */
+  var CODE_A = [
+    "def count_up_to(n):",
+    "    i = 1",
+    "    while i &lt;= n:",
+    "        yield i",
+    "        i = i + 1",
+    "    print(\"Generator fertig\")",
+    "",
+    "gen = count_up_to(3)",
+    "print(next(gen))",
+    "print(next(gen))",
+    "print(next(gen))",
+    "print(next(gen))"
+  ];
+
+  /* ================= Beispiel 2: Generator Expression ================= */
+  var CODE_B = [
+    "zahlen = [1, 2, 3, 4, 5]",
+    "",
+    "liste = [x * x <span class=\"cm\">for</span> x <span class=\"cm\">in</span> zahlen]",
+    "gen   = (x * x <span class=\"cm\">for</span> x <span class=\"cm\">in</span> zahlen)",
+    "",
+    "print(next(gen))",
+    "print(next(gen))",
+    "",
+    "print(sum(gen))",
+    "print(sum(gen))"
+  ];
+
+  var A = [], B = [];
+
+  function mk(o){
+    return {code:o.code, line:o.line === undefined ? -1 : o.line, paused:o.paused === undefined ? -1 : o.paused,
+      dead:o.dead || null, state:o.state, statetext:o.statetext, mem:o.mem, out:o.out || "",
+      codetitle:o.codetitle || "Generator-Funktion", memtitle:o.memtitle || "Zustand des Generators",
+      cap:o.cap, dur:pace(o.dur)};
+  }
+  function pace(d){
+    d = Math.round((d || 3000) * 0.55);
+    if(d < 1100) d = 1100;
+    if(d > 3200) d = 3200;
+    return d;
+  }
+  function vars(list){
+    var h = '<div class="vars">', k;
+    for(k = 0; k < list.length; k++){
+      h += '<span class="var' + (list[k][2] ? " chg" : "") + '">' + list[k][0] + ' <i>=</i> ' + list[k][1] + '</span>';
+    }
+    return h + '</div>';
+  }
+
+  /* ---- Beispiel 1 ---- */
+  A.push(mk({code:"A",line:7,state:"neu",statetext:"noch nicht gestartet",
+    mem:'<div class="slot open"><span class="lbl">Was ist gerade passiert?</span><b>Nichts.</b> Der Aufruf hat den Funktionsrumpf <b>nicht</b> ausgeführt – er hat nur ein Generator-Objekt gebaut.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>keine – der Rumpf war noch nie dran' + vars([]) + '</div>',
+    dur:5200,
+    cap:"<b>Der wichtigste Schritt der ganzen Animation.</b> <code>count_up_to(3)</code> sieht aus wie ein Funktionsaufruf, führt aber keine einzige Zeile des Rumpfs aus. Es entsteht nur ein Generator-Objekt, das weiss, <em>wo</em> es einmal anfangen wird."}));
+
+  A.push(mk({code:"A",line:1,state:"run",statetext:"läuft · erster next()-Aufruf",
+    mem:'<div class="slot open"><span class="lbl">Auslöser</span>next(gen) &rarr; jetzt startet der Rumpf, von oben.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>' + vars([["n","3",false],["i","1",true]]) + '</div>',
+    dur:4000,
+    cap:"Erst <code>next(gen)</code> startet den Rumpf – bei Zeile 2. <code>n</code> kennt der Generator seit dem Aufruf, <code>i</code> entsteht jetzt."}));
+
+  A.push(mk({code:"A",line:2,state:"run",statetext:"läuft · Bedingung prüfen",
+    mem:'<div class="slot"><span class="lbl">Prüfung</span>1 &lt;= 3 &rarr; <b>wahr</b>, also in die Schleife.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>' + vars([["n","3",false],["i","1",false]]) + '</div>',
+    dur:3000,cap:"Die Schleifenbedingung ist wahr – weiter zum <code>yield</code>."}));
+
+  A.push(mk({code:"A",line:3,paused:3,state:"pause",statetext:"pausiert in Zeile 4",out:"1",
+    mem:'<div class="slot is-new"><span class="lbl">yield</span>Gibt <b>1</b> heraus und <b>hält an</b> – mitten im Rumpf.</div>'+
+        '<div class="slot open"><span class="lbl">Was bleibt stehen</span>Die Zeilennummer <b>und</b> alle lokalen Variablen. Genau das unterscheidet ihn von <code>return</code>.' + vars([["n","3",false],["i","1",false]]) + '</div>',
+    dur:5600,
+    cap:"<b><code>yield</code> ist kein <code>return</code>.</b> Der Wert 1 geht hinaus, aber die Funktion wird nicht beendet: Zeilennummer und lokale Variablen bleiben eingefroren stehen."}));
+
+  A.push(mk({code:"A",line:4,state:"run",statetext:"läuft · macht bei Zeile 5 weiter",out:"1",
+    mem:'<div class="slot open"><span class="lbl">Auslöser</span>Der zweite next(gen) &rarr; weiter <b>nach</b> dem yield.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>' + vars([["n","3",false],["i","2",true]]) + '</div>',
+    dur:5200,
+    cap:"Der zweite <code>next()</code> fängt <b>nicht</b> oben an, sondern genau nach dem <code>yield</code>. <code>i</code> war noch 1 und wird jetzt 2 – der Zustand hat die Pause überlebt."}));
+
+  A.push(mk({code:"A",line:3,paused:3,state:"pause",statetext:"pausiert in Zeile 4",out:"1\n2",
+    mem:'<div class="slot is-new"><span class="lbl">yield</span>Gibt <b>2</b> heraus, hält wieder an.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>' + vars([["n","3",false],["i","2",false]]) + '</div>',
+    dur:3400,cap:"Bedingung geprüft, <code>yield</code> erreicht: 2 geht hinaus, der Generator hält wieder in Zeile 4 an."}));
+
+  A.push(mk({code:"A",line:3,paused:3,state:"pause",statetext:"pausiert in Zeile 4",out:"1\n2\n3",
+    mem:'<div class="slot is-new"><span class="lbl">yield</span>Gibt <b>3</b> heraus, hält an.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>' + vars([["n","3",false],["i","3",true]]) + '</div>',
+    dur:3400,cap:"Dritter <code>next()</code>: <code>i</code> ist auf 3 gestiegen, 3 &lt;= 3 gilt noch, also kommt 3 heraus."}));
+
+  A.push(mk({code:"A",line:2,state:"run",statetext:"läuft · Bedingung prüfen",out:"1\n2\n3",
+    mem:'<div class="slot dup"><span class="lbl">Prüfung</span>4 &lt;= 3 &rarr; <b>falsch</b>. Die Schleife endet.</div>'+
+        '<div class="slot"><span class="lbl">Lokale Variablen</span>' + vars([["n","3",false],["i","4",true]]) + '</div>',
+    dur:4000,
+    cap:"Der vierte <code>next()</code> läuft weiter: <code>i</code> wird 4, und jetzt ist die Bedingung falsch. Die Schleife ist zu Ende."}));
+
+  A.push(mk({code:"A",line:5,state:"run",statetext:"läuft · letzte Zeile",out:"1\n2\n3\nGenerator fertig",
+    mem:'<div class="slot open"><span class="lbl">Beachte</span>Diese <code>print</code>-Zeile läuft erst <b>jetzt</b> – beim vierten next(), nicht beim Erzeugen.</div>',
+    dur:5000,
+    cap:"Die Zeile nach der Schleife kommt erst hier dran. Ein guter Beleg dafür, dass der Rumpf wirklich stückweise gelaufen ist."}));
+
+  A.push(mk({code:"A",line:-1,dead:[0,1,2,3,4,5],state:"done",statetext:"beendet · StopIteration",
+    out:"1\n2\n3\nGenerator fertig\nTraceback (most recent call last):\nStopIteration",
+    mem:'<div class="slot dup"><span class="lbl">Ende</span>Der Rumpf ist durchgelaufen &rarr; <b>StopIteration</b>.</div>'+
+        '<div class="slot"><span class="lbl">Und danach?</span>Der Generator ist <b>verbraucht</b>. Jeder weitere next() wirft wieder StopIteration – er startet nicht neu.</div>',
+    dur:6500,
+    cap:"<b>Ende.</b> Weil der Rumpf zu Ende ist, wirft der vierte <code>next()</code> ein <code>StopIteration</code>. Eine <code>for</code>-Schleife fängt das automatisch ab – deshalb sieht man es dort nie. Der Generator ist damit endgültig verbraucht."}));
+
+  /* ---- Beispiel 2 ---- */
+  function cells(vals, cls){
+    var h = '<div class="strip">', k;
+    for(k = 0; k < vals.length; k++) h += '<span class="cell ' + (cls[k] || "") + '">' + vals[k] + '</span>';
+    return h + '</div>';
+  }
+
+  B.push(mk({code:"B",line:0,state:"neu",statetext:"Ausgangsdaten",codetitle:"Liste und Generator",
+    memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot"><span class="lbl">zahlen</span>' + cells(["1","2","3","4","5"],["made","made","made","made","made"]) + '</div>',
+    dur:3400,cap:"Ausgangslage: eine Liste mit fünf Zahlen. Aus ihr entstehen gleich zwei Dinge, die sich fast gleich schreiben – aber völlig anders verhalten."}));
+
+  B.push(mk({code:"B",line:2,state:"run",statetext:"List Comprehension · rechnet sofort",codetitle:"Liste und Generator",
+    memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot"><span class="lbl">zahlen</span>' + cells(["1","2","3","4","5"],["","","","",""]) + '</div>'+
+        '<div class="slot is-new"><span class="lbl">liste · fünf fertige Werte</span>' + cells(["1","4","9","16","25"],["made","made","made","made","made"]) + '</div>',
+    dur:5000,
+    cap:"Die <b>eckigen Klammern</b> rechnen sofort: alle fünf Quadrate werden berechnet und liegen im Speicher. Bei fünf Zahlen egal – bei fünf Millionen nicht mehr."}));
+
+  B.push(mk({code:"B",line:3,state:"pause",statetext:"Generator · noch nichts gerechnet",codetitle:"Liste und Generator",
+    memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot"><span class="lbl">liste</span>' + cells(["1","4","9","16","25"],["","","","",""]) + '</div>'+
+        '<div class="slot open"><span class="lbl">gen · noch kein einziger Wert</span>' + cells(["?","?","?","?","?"],["ghost","ghost","ghost","ghost","ghost"]) + '</div>',
+    dur:5600,
+    cap:"<b>Nur die Klammern sind anders</b> – und schon ist nichts gerechnet. <code>gen</code> ist eine Vorschrift, kein Behälter. Im Speicher steht ein einziges Objekt statt fünf Zahlen."}));
+
+  B.push(mk({code:"B",line:5,state:"run",statetext:"erster next() · ein Wert entsteht",out:"1",
+    codetitle:"Liste und Generator",memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot is-new"><span class="lbl">gen liefert</span>' + cells(["1","?","?","?","?"],["now","ghost","ghost","ghost","ghost"]) + '</div>'+
+        '<div class="slot"><span class="lbl">Merke</span>Gerechnet wird <b>1 &times; 1</b> – und sonst nichts.</div>',
+    dur:4400,
+    cap:"Erst <code>next()</code> löst eine Rechnung aus, und zwar genau eine: 1 · 1. Die restlichen vier Quadrate existieren immer noch nicht."}));
+
+  B.push(mk({code:"B",line:6,state:"run",statetext:"zweiter next()",out:"1\n4",
+    codetitle:"Liste und Generator",memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot is-new"><span class="lbl">gen liefert</span>' + cells(["1","4","?","?","?"],["gone","now","ghost","ghost","ghost"]) + '</div>'+
+        '<div class="slot dup"><span class="lbl">Achtung</span>Die 1 ist <b>weg</b>. Ein Generator geht nur vorwärts – zurück gibt es nicht.</div>',
+    dur:5000,
+    cap:"Zweiter <code>next()</code>: 4. Die 1 ist damit endgültig verbraucht – ein Generator hat kein <code>gen[0]</code> und kein Zurückspulen."}));
+
+  B.push(mk({code:"B",line:8,state:"run",statetext:"sum() holt den Rest",out:"1\n4\n50",
+    codetitle:"Liste und Generator",memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot"><span class="lbl">gen · Rest</span>' + cells(["1","4","9","16","25"],["gone","gone","made","made","made"]) + '</div>'+
+        '<div class="slot is-new"><span class="lbl">sum(gen)</span>9 + 16 + 25 = <b>50</b> – nur noch, was übrig war.</div>',
+    dur:5600,
+    cap:"<code>sum(gen)</code> holt alles, was noch kommt – aber eben nur das: 9 + 16 + 25 = <b>50</b>, nicht 55. Die ersten beiden Werte waren schon abgeholt."}));
+
+  B.push(mk({code:"B",line:9,state:"done",statetext:"verbraucht",out:"1\n4\n50\n0",
+    codetitle:"Liste und Generator",memtitle:"Was liegt im Speicher",
+    mem:'<div class="slot dup"><span class="lbl">gen · leer</span>' + cells(["1","4","9","16","25"],["gone","gone","gone","gone","gone"]) + '</div>'+
+        '<div class="slot"><span class="lbl">liste dagegen</span>' + cells(["1","4","9","16","25"],["made","made","made","made","made"]) + ' beliebig oft verwendbar</div>',
+    dur:7000,
+    cap:"<b>Und hier die Falle:</b> das zweite <code>sum(gen)</code> ergibt <b>0</b> – keine Fehlermeldung, einfach 0. Ein Generator ist <b>einmalig</b>. Wer die Werte mehrfach braucht, nimmt eine Liste; wer sie einmal durchläuft und Speicher sparen will, den Generator."}));
+
+  var EX = [
+    {name:"1 · Generator-Funktion", steps:A, code:CODE_A},
+    {name:"2 · Generator Expression", steps:B, code:CODE_B}
+  ];
+
+  /* ---------- Aufbau ---------- */
+  var codeEl = document.getElementById("code"), lineEls = [], curEx = -1;
+  function buildCode(list){
+    codeEl.innerHTML = ""; lineEls = [];
+    for(var k = 0; k < list.length; k++){
+      var s = document.createElement("span");
+      s.className = "ln";
+      s.innerHTML = '<span class="num">' + (k + 1) + '</span>' + list[k];
+      codeEl.appendChild(s); lineEls.push(s);
+    }
+  }
+
+  var tabsEl = document.getElementById("tabs"), tabBtns = [], t;
+  for(t = 0; t < EX.length; t++){
+    (function(idx){
+      var b = document.createElement("button");
+      b.appendChild(document.createTextNode(EX[idx].name));
+      b.onclick = function(){ setPlay(false); show(idx, 0); };
+      tabsEl.appendChild(b); tabBtns.push(b);
+    })(t);
+  }
+
+  var memEl = document.getElementById("mem"), memT = document.getElementById("memtitle"),
+      codeT = document.getElementById("codetitle"), consEl = document.getElementById("console"),
+      stEl = document.getElementById("state"), stTx = document.getElementById("statetext"),
+      capEl = document.getElementById("caption"), cntEl = document.getElementById("counter"),
+      playBtn = document.getElementById("play"), prevBtn = document.getElementById("prev"),
+      nextBtn = document.getElementById("next");
+  var ex = 0, i = 0, playing = false, timer = null;
+  var steps = EX[0].steps;
+
+  function indexOf(arr, v){ for(var k = 0; k < arr.length; k++) if(arr[k] === v) return k; return -1; }
+
+  function show(newEx, newI){
+    ex = newEx; steps = EX[ex].steps; i = newI;
+    if(curEx !== ex){ buildCode(EX[ex].code); curEx = ex; }
+    render();
+  }
+
+  function render(){
+    var s = steps[i], k, cls;
+    for(k = 0; k < lineEls.length; k++){
+      cls = "ln";
+      if(s.dead && indexOf(s.dead, k) > -1) cls += " dead";
+      if(k === s.paused) cls += " paused";
+      else if(k === s.line) cls += " active";
+      lineEls[k].className = cls;
+    }
+    stEl.className = "state " + s.state;
+    stTx.innerHTML = s.statetext;
+    memEl.innerHTML = s.mem;
+    memT.innerHTML = s.memtitle;
+    codeT.innerHTML = s.codetitle;
+    consEl.textContent = s.out;
+    capEl.innerHTML = s.cap;
+    for(k = 0; k < tabBtns.length; k++) tabBtns[k].className = (k === ex) ? "active" : "";
+    cntEl.innerHTML = "Schritt " + (i + 1) + " / " + steps.length;
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === steps.length - 1);
+  }
+  function schedule(){
+    if(timer) clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(function(){
+      if(i < steps.length - 1){ i++; render(); schedule(); }
+      else { playing = false; playBtn.innerHTML = "▶ Abspielen"; }
+    }, steps[i].dur);
+  }
+  function setPlay(v){
+    playing = v;
+    playBtn.innerHTML = v ? "❚❚ Pause" : "▶ Abspielen";
+    if(v){ if(i >= steps.length - 1){ i = 0; render(); } schedule(); }
+    else if(timer) clearTimeout(timer);
+  }
+  playBtn.onclick = function(){ setPlay(!playing); };
+  nextBtn.onclick = function(){ setPlay(false); if(i < steps.length - 1){ i++; render(); } };
+  prevBtn.onclick = function(){ setPlay(false); if(i > 0){ i--; render(); } };
+  document.getElementById("reset").onclick = function(){ setPlay(false); i = 0; render(); };
+  document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowRight"){ setPlay(false); if(i < steps.length - 1){ i++; render(); } }
+    if(e.key === "ArrowLeft"){ setPlay(false); if(i > 0){ i--; render(); } }
+    if(e.key === " "){ e.preventDefault(); setPlay(!playing); }
+  });
+
+  show(0, 0);
+})();
+</script>
+</body>
+</html>

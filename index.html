@@ -46,6 +46,14 @@
   <p class="sub">Standalone-HTML-Animationen zum Modul 323 «Funktional Programmieren».
      Sie werden im Modulwiki per <code>iframe</code> in die jeweilige Theorieseite eingebettet.</p>
 
+  <h2>LU01 – Einführung</h2>
+
+  <a class="card" href="lu01/tracetable.html">
+    <span class="t">Trace Table: Zeile für Zeile mitschreiben</span>
+    <span class="d">Die Tabelle füllt sich Durchgang für Durchgang, während der Code danebenläuft –
+      lineare Suche und Collatz-Folge. Zeigt unter anderem, warum die Schleife früher abbricht als gedacht.</span>
+  </a>
+
   <h2>LU02 – Grundkonzepte</h2>
 
   <a class="card" href="lu02/pure-vs-unpure.html">
@@ -118,6 +126,28 @@
     <span class="t">L07 – Abschreibung: von der Regel zum Code</span>
     <span class="d">Zwei Wächter, ein Base Case, ein Rekursionsschritt – in dieser Reihenfolge, und warum
       jede andere Reihenfolge die Funktion kaputt macht.</span>
+  </a>
+
+  <h2>LU04 – Iterables</h2>
+
+  <a class="card" href="lu04/generatoren.html">
+    <span class="t">Generatoren: wann wird eigentlich gerechnet?</span>
+    <span class="d">Warum <code>count_up_to(3)</code> keine einzige Zeile ausführt, wo <code>yield</code> anhält
+      und was dabei stehen bleibt – und weshalb das zweite <code>sum(gen)</code> stillschweigend 0 ergibt.</span>
+  </a>
+
+  <h2>LU05 – Funktionale Komponenten</h2>
+
+  <a class="card" href="lu05/closures.html">
+    <span class="t">Closures: was die Funktion überlebt</span>
+    <span class="d">Der Rahmen der äusseren Funktion verschwindet vom Stack, die Zelle mit ihrer Variablen
+      bleibt. Zwei Aufrufe ergeben zwei unabhängige Zellen – nachgewiesen über <code>__closure__</code>.</span>
+  </a>
+
+  <a class="card" href="lu05/decorator.html">
+    <span class="t">Decorators: was das @-Zeichen wirklich tut</span>
+    <span class="d"><code>@logged</code> ist nichts als <code>add = logged(add)</code>: der Name wird umgehängt,
+      das Original ist nur noch über die Closure erreichbar. Zweites Beispiel: Decorator mit eigenem Parameter.</span>
   </a>
 
   <footer>

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU05d – Decorators: was das @-Zeichen wirklich tut</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4; --panel:#f6f8fa;
+  --hl:#fff3c4; --hl-border:#e5b800;
+  --accent:#0b62c4; --accent-soft:#e7f0fb;
+  --new:#0a7d55; --new-soft:#e4f5ee;
+  --warn:#b3541e; --warn-soft:#fbeee4;
+  --console-bg:#20262c; --console-fg:#e6edf3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d; --panel:#1c2229;
+    --hl:#3d3413; --hl-border:#b79600;
+    --accent:#65a9f5; --accent-soft:#1d2c3d;
+    --new:#4fc99a; --new-soft:#16302a;
+    --warn:#e79465; --warn-soft:#33231a;
+    --console-bg:#0d1117; --console-fg:#e6edf3;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5}
+.app{max-width:1020px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;line-height:1.3}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 0;max-width:62ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-radius:999px;font-size:13px;padding:6px 12px;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.tabs button:hover{border-color:var(--accent);color:var(--accent)}
+.tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(300px,1.05fr) minmax(290px,.95fr);gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.68;
+  margin:0;min-height:214px;overflow-x:auto;white-space:pre}
+.code .ln{display:block;padding:0 6px 0 0;border-left:3px solid transparent;border-radius:0 3px 3px 0;
+  transition:background .25s,border-color .25s}
+.code .ln .num{display:inline-block;width:22px;text-align:right;margin-right:9px;color:var(--muted);opacity:.55;
+  -webkit-user-select:none;user-select:none}
+.code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .ln.caller{background:rgba(229,184,0,.2);border-left-color:var(--hl-border)}
+.code .cm{color:var(--muted)}
+.console{margin-top:9px;background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+  padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:52px;
+  white-space:pre-wrap}
+.console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+.col-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin:0 0 5px}
+.zone{margin-bottom:11px}
+.names{display:flex;flex-direction:column;gap:5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.name{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:5px;
+  padding:5px 9px;background:var(--bg);color:var(--muted);transition:all .3s}
+.name .arw{color:var(--accent)}
+.name b{color:var(--fg);font-weight:600}
+.name.live{border-color:var(--new);background:var(--new-soft)}
+.name.live b,.name.live .arw{color:var(--new)}
+.name.hot{border-color:var(--hl-border);background:var(--hl)}
+.name.lost{border-style:dashed;opacity:.55}
+.name.lost b{color:var(--muted)}
+
+.objs{display:flex;flex-direction:column;gap:6px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.obj{border:1px solid var(--line);border-radius:6px;padding:6px 9px;background:var(--bg);color:var(--muted);transition:all .3s}
+.obj .k{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
+.obj b{color:var(--fg);font-weight:600}
+.obj.live{border-color:var(--new);background:var(--new-soft)}
+.obj.live b,.obj.live .k{color:var(--new)}
+.obj.hot{border-color:var(--hl-border);background:var(--hl)}
+.obj.hot b{color:var(--fg)}
+.obj.ghost{border-style:dashed;opacity:.5}
+
+.stack{display:flex;flex-direction:column-reverse;gap:5px;min-height:40px}
+.frame{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--bg);border-radius:5px;
+  padding:5px 9px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--fg)}
+.frame.top{background:var(--accent-soft);color:var(--accent)}
+.stack-empty{color:var(--muted);opacity:.7;font-style:italic;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+
+.note{border:1px solid var(--line);border-radius:5px;padding:6px 9px;background:var(--bg);color:var(--muted);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;margin-top:8px}
+.note.good{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.note.warn{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.note b{font-weight:600}
+
+.caption{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 6px 6px 0;padding:9px 12px;font-size:14px;min-height:62px}
+.caption code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.controls{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls button{border-radius:6px;font-size:13.5px;font-weight:600;padding:8px 16px;background:var(--panel);
+  border:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.controls button:hover{border-color:var(--accent);color:var(--accent)}
+.controls button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+.controls button#next{background:var(--accent);color:#fff;border-color:var(--accent)}
+.controls button#next:hover{opacity:.9;color:#fff}
+.controls button#play{min-width:112px}
+.counter{font-size:12.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hint{margin-top:8px;font-size:12.5px;color:var(--muted)}
+@media (max-width:780px){ .main{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition-duration:.01ms !important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div>
+      <h1>Decorators: was das @-Zeichen wirklich tut</h1>
+      <p class="sub">Ein Decorator ist kein Zauber und keine eigene Sprachkonstruktion. <code>@logged</code> ist
+      eine abgekürzte <b>Zuweisung</b> – und danach zeigt derselbe Name auf ein anderes Objekt.
+      Diese Animation zeigt, auf welches.</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2 id="codetitle">Code</h2>
+      <pre class="code" id="code"></pre>
+      <div class="console" id="console"></div>
+    </div>
+    <div class="panel">
+      <h2>Namen und Objekte</h2>
+      <div class="zone">
+        <p class="col-title">Namen im Modul</p>
+        <div class="names" id="names"></div>
+      </div>
+      <div class="zone">
+        <p class="col-title">Funktionsobjekte</p>
+        <div class="objs" id="objs"></div>
+      </div>
+      <div class="zone">
+        <p class="col-title">Aufruf-Stack</p>
+        <div class="stack" id="stack"></div>
+      </div>
+      <div id="note"></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="play">▶ Abspielen</button>
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen, mit der Leertaste abspielen und pausieren.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CODE_A = [
+    "def logged(func):",
+    "    def wrapper(*args, **kwargs):",
+    "        print(\"Aufruf:\", func.__name__)",
+    "        result = func(*args, **kwargs)",
+    "        print(\"Ergebnis:\", result)",
+    "        return result",
+    "    return wrapper",
+    "",
+    "@logged",
+    "def add(a, b):",
+    "    return a + b",
+    "",
+    "print(add(2, 3))",
+    "print(add.__name__)"
+  ];
+
+  var CODE_B = [
+    "def repeat(times):",
+    "    def decorator(func):",
+    "        def wrapper(*args, **kwargs):",
+    "            <span class=\"cm\">for</span> _ <span class=\"cm\">in</span> range(times):",
+    "                func(*args, **kwargs)",
+    "        return wrapper",
+    "    return decorator",
+    "",
+    "@repeat(3)",
+    "def greet(name):",
+    "    print(\"Hallo\", name)",
+    "",
+    "greet(\"Kevin\")"
+  ];
+
+  function pace(d){
+    d = Math.round((d || 3000) * 0.55);
+    if(d < 1100) d = 1100;
+    if(d > 3200) d = 3200;
+    return d;
+  }
+  function mk(o){
+    return {line:o.line === undefined ? -1 : o.line, caller:o.caller === undefined ? -1 : o.caller,
+      names:o.names || [], objs:o.objs || [], stack:o.stack || [], note:o.note || "", out:o.out || "",
+      codetitle:o.codetitle || "Code", cap:o.cap, dur:pace(o.dur)};
+  }
+  function nm(n, target, cls){
+    return '<div class="name ' + (cls || "") + '">' + n + ' <span class="arw">&rarr;</span> <b>' + target + '</b></div>';
+  }
+  function obj(k, v, cls){
+    return '<div class="obj ' + (cls || "") + '"><span class="k">' + k + '</span><b>' + v + '</b></div>';
+  }
+  function fr(txt, top){
+    return '<div class="frame' + (top ? " top" : "") + '">' + txt + '</div>';
+  }
+
+  /* ================= Beispiel 1 ================= */
+  var A = [];
+
+  A.push(mk({line:0,dur:3400,
+    names:[nm("logged","Decorator-Funktion","live")],
+    objs:[obj("logged","nimmt eine Funktion, gibt eine Funktion zurück","live")],
+    note:'<div class="note">Nur definiert. Nichts davon ist bisher gelaufen.</div>',
+    cap:"<code>logged</code> ist eine ganz normale Funktion. Das Besondere: sie <b>nimmt eine Funktion entgegen</b> und <b>gibt eine Funktion zurück</b>. Mehr braucht ein Decorator nicht."}));
+
+  A.push(mk({line:9,dur:4200,
+    names:[nm("logged","Decorator-Funktion","live"),nm("add","originale Funktion a + b","hot")],
+    objs:[obj("logged","Decorator-Funktion","live"),obj("Objekt #1","def add(a, b): return a + b","hot")],
+    note:'<div class="note">Zuerst entsteht das Original – ganz normal.</div>',
+    cap:"Python liest von oben nach unten. Zuerst wird <code>def add</code> ausgeführt: es entsteht ein Funktionsobjekt, und der Name <code>add</code> zeigt darauf. Der Decorator ist noch nicht dran."}));
+
+  A.push(mk({line:8,dur:5600,
+    names:[nm("logged","Decorator-Funktion","live"),nm("add","originale Funktion","live")],
+    objs:[obj("logged","Decorator-Funktion","live"),obj("Objekt #1","originale add-Funktion","live")],
+    stack:[fr("logged(func = Objekt #1)", true)],
+    note:'<div class="note good"><b>@logged</b> bedeutet wörtlich: <b>add = logged(add)</b></div>',
+    cap:"Jetzt kommt die <code>@</code>-Zeile – und die ist reine Abkürzung. Sie ruft <code>logged</code> auf und übergibt das eben entstandene Objekt. Genau dasselbe könnte man von Hand als <code>add = logged(add)</code> schreiben."}));
+
+  A.push(mk({line:1,dur:5000,
+    names:[nm("logged","Decorator-Funktion","live"),nm("add","originale Funktion","live")],
+    objs:[obj("Objekt #1","originale add-Funktion","live"),
+          obj("Objekt #2 · wrapper","Closure über func = Objekt #1","hot")],
+    stack:[fr("logged(func = Objekt #1)", true)],
+    note:'<div class="note good">Der wrapper ist eine <b>Closure</b> – er hält das Original fest.</div>',
+    cap:"Im Rumpf von <code>logged</code> entsteht <code>wrapper</code>. Es ist genau die Closure aus LU05c: <code>wrapper</code> merkt sich <code>func</code>, also das originale <code>add</code>."}));
+
+  A.push(mk({line:8,dur:7000,
+    names:[nm("logged","Decorator-Funktion","live"),nm("add","wrapper (Objekt #2)","hot"),
+           nm("(kein Name mehr)","originale Funktion – nur noch über die Closure erreichbar","lost")],
+    objs:[obj("Objekt #1","originale add-Funktion","ghost"),
+          obj("Objekt #2 · wrapper","Closure über func = Objekt #1","live")],
+    note:'<div class="note good"><b>Der Kern:</b> der Name add zeigt jetzt auf den wrapper.</div>',
+    cap:"<b>Hier passiert das Entscheidende.</b> <code>logged</code> gibt <code>wrapper</code> zurück, und dieser Rückgabewert wird dem Namen <code>add</code> zugewiesen. Ab jetzt zeigt <code>add</code> auf den wrapper – das Original hat gar keinen Namen mehr und ist nur noch über die Closure erreichbar."}));
+
+  A.push(mk({line:12,dur:4000,
+    names:[nm("add","wrapper (Objekt #2)","live")],
+    objs:[obj("Objekt #1","originale add-Funktion","ghost"),obj("Objekt #2 · wrapper","hält func = Objekt #1","live")],
+    stack:[fr("wrapper(2, 3)", true)],
+    note:'<div class="note">args = (2, 3) &rarr; landen im <b>wrapper</b>, nicht im Original.</div>',
+    cap:"<code>add(2, 3)</code> sieht im Code unverändert aus – landet aber im wrapper. Die Argumente werden von <code>*args</code> aufgefangen, damit der wrapper mit <b>jeder</b> Signatur funktioniert."}));
+
+  A.push(mk({line:2,dur:4400,out:"Aufruf: add",
+    names:[nm("add","wrapper (Objekt #2)","live")],
+    objs:[obj("Objekt #2 · wrapper","hält func = Objekt #1","hot")],
+    stack:[fr("wrapper(2, 3)", true)],
+    note:'<div class="note">func.__name__ ist <b>add</b> – gemeint ist das Original in der Closure.</div>',
+    cap:"Die erste Zeile des wrappers läuft: sie fragt das <b>Original</b> nach seinem Namen. Deshalb steht in der Ausgabe <code>add</code> und nicht <code>wrapper</code>."}));
+
+  A.push(mk({line:3,caller:3,dur:4600,out:"Aufruf: add",
+    names:[nm("add","wrapper (Objekt #2)","live")],
+    objs:[obj("Objekt #1","originale add-Funktion","hot"),obj("Objekt #2 · wrapper","ruft func auf","live")],
+    stack:[fr("wrapper(2, 3)"),fr("add(2, 3) · das Original", true)],
+    note:'<div class="note good">Jetzt erst läuft der eigentliche Code: 2 + 3</div>',
+    cap:"Und hier ruft der wrapper das Original auf – über die Closure, denn einen Namen dafür gibt es ja nicht mehr. Zwei Rahmen liegen jetzt auf dem Stack."}));
+
+  A.push(mk({line:4,dur:4000,out:"Aufruf: add\nErgebnis: 5",
+    names:[nm("add","wrapper (Objekt #2)","live")],
+    objs:[obj("Objekt #2 · wrapper","result = 5","live")],
+    stack:[fr("wrapper(2, 3)", true)],
+    note:'<div class="note">Das Original ist fertig, der wrapper macht weiter.</div>',
+    cap:"Das Original hat 5 geliefert und ist vom Stack verschwunden. Der wrapper läuft weiter und gibt die zweite Meldung aus – das ist die Stelle, an der ein Decorator <b>nach</b> der Funktion arbeitet."}));
+
+  A.push(mk({line:12,dur:4400,out:"Aufruf: add\nErgebnis: 5\n5",
+    names:[nm("add","wrapper (Objekt #2)","live")],
+    objs:[obj("Objekt #2 · wrapper","gibt result weiter","live")],
+    note:'<div class="note warn">Fehlt <b>return result</b>, gibt die dekorierte Funktion plötzlich <b>None</b> zurück.</div>',
+    cap:"<code>return result</code> reicht das Ergebnis nach aussen. Diese Zeile wird gern vergessen – dann funktioniert scheinbar alles, aber die dekorierte Funktion liefert nur noch <code>None</code>."}));
+
+  A.push(mk({line:13,dur:7000,out:"Aufruf: add\nErgebnis: 5\n5\nwrapper",
+    names:[nm("add","wrapper (Objekt #2)","hot")],
+    objs:[obj("Objekt #2 · wrapper","__name__ = 'wrapper'","hot")],
+    note:'<div class="note warn">Nebenwirkung: der Name der Funktion ist verloren.</div>',
+    cap:"<b>Der Beweis, dass wirklich umgehängt wurde:</b> <code>add.__name__</code> ergibt <code>wrapper</code>. Für Debugging und Dokumentation ist das lästig – deshalb setzt man in der Praxis <code>@functools.wraps(func)</code> auf den wrapper, das kopiert Name und Docstring vom Original herüber."}));
+
+  /* ================= Beispiel 2 ================= */
+  var B = [];
+
+  B.push(mk({line:0,dur:4200,codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("repeat","Funktion, die einen Decorator baut","live")],
+    objs:[obj("repeat","nimmt times, gibt einen Decorator zurück","live")],
+    note:'<div class="note">Drei verschachtelte def – jedes hat eine eigene Aufgabe.</div>',
+    cap:"Sobald ein Decorator selbst Parameter bekommen soll, braucht es eine Ebene mehr: <code>repeat</code> ist kein Decorator, sondern eine Funktion, die einen <b>baut</b>."}));
+
+  B.push(mk({line:8,dur:5600,codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("repeat","Decorator-Fabrik","live")],
+    objs:[obj("repeat","Decorator-Fabrik","live"),obj("Objekt #1 · decorator","Closure über times = 3","hot")],
+    stack:[fr("repeat(times = 3)", true)],
+    note:'<div class="note good">Achtung: hier stehen <b>Klammern</b>. @repeat(3) wird zuerst <b>aufgerufen</b>.</div>',
+    cap:"Der Unterschied zu Beispiel 1 steckt in den Klammern. <code>@repeat(3)</code> ruft zuerst <code>repeat(3)</code> auf – das Ergebnis dieses Aufrufs ist dann der eigentliche Decorator, mit <code>times = 3</code> in der Closure."}));
+
+  B.push(mk({line:9,dur:4000,codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("repeat","Decorator-Fabrik","live"),nm("greet","originale Funktion","hot")],
+    objs:[obj("Objekt #1 · decorator","Closure über times = 3","live"),
+          obj("Objekt #2","def greet(name): print(...)","hot")],
+    note:'<div class="note">Erst jetzt entsteht das Original.</div>',
+    cap:"Danach entsteht wie gewohnt die originale Funktion <code>greet</code>."}));
+
+  B.push(mk({line:8,dur:5600,codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("repeat","Decorator-Fabrik","live"),nm("greet","wrapper (Objekt #3)","hot"),
+           nm("(kein Name mehr)","originale greet-Funktion","lost")],
+    objs:[obj("Objekt #2","originale greet-Funktion","ghost"),
+          obj("Objekt #3 · wrapper","Closure über func = #2 <b>und</b> times = 3","hot")],
+    stack:[fr("decorator(func = Objekt #2)", true)],
+    note:'<div class="note good">Der wrapper hält <b>zwei</b> Dinge fest: die Funktion und die Zahl 3.</div>',
+    cap:"Jetzt wird der zurückgegebene <code>decorator</code> auf <code>greet</code> angewendet – wie in Beispiel 1. Der entstehende wrapper trägt aus zwei Ebenen etwas mit sich: die Funktion <code>func</code> und den Parameter <code>times</code>."}));
+
+  B.push(mk({line:12,dur:4000,codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("greet","wrapper (Objekt #3)","live")],
+    objs:[obj("Objekt #3 · wrapper","func = #2, times = 3","live")],
+    stack:[fr("wrapper('Kevin')", true)],
+    note:'<div class="note">Ein Aufruf – aber times = 3 liegt bereit.</div>',
+    cap:"<code>greet(\"Kevin\")</code> landet im wrapper. Der weiss aus seiner Closure, dass er dreimal wiederholen soll."}));
+
+  B.push(mk({line:4,caller:4,dur:4800,out:"Hallo Kevin\nHallo Kevin\nHallo Kevin",
+    codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("greet","wrapper (Objekt #3)","live")],
+    objs:[obj("Objekt #2","originale greet-Funktion","hot"),obj("Objekt #3 · wrapper","Durchlauf 3 von 3","live")],
+    stack:[fr("wrapper('Kevin')"),fr("greet('Kevin') · das Original", true)],
+    note:'<div class="note">Dreimal derselbe Aufruf des Originals.</div>',
+    cap:"Die Schleife im wrapper ruft das Original dreimal auf – daher dreimal dieselbe Ausgabe."}));
+
+  B.push(mk({line:12,dur:7000,out:"Hallo Kevin\nHallo Kevin\nHallo Kevin",
+    codetitle:"Decorator mit eigenem Parameter",
+    names:[nm("greet","wrapper (Objekt #3)","live")],
+    objs:[obj("Objekt #3 · wrapper","kein return im wrapper","hot")],
+    note:'<div class="note warn">Dieser wrapper gibt nichts zurück &rarr; greet(...) ergibt <b>None</b>.</div>',
+    cap:"<b>Merke für die Praxis:</b> ein Decorator mit Parameter ist <b>drei</b> Ebenen tief – Fabrik, Decorator, wrapper. Und hier fehlt bewusst das <code>return</code> im wrapper: <code>greet(\"Kevin\")</code> gibt deshalb <code>None</code> zurück. Bei einer Funktion mit Ergebnis wäre das ein Fehler."}));
+
+  var EX = [
+    {name:"1 · @ ist eine Zuweisung", steps:A, code:CODE_A},
+    {name:"2 · Decorator mit Parameter", steps:B, code:CODE_B}
+  ];
+
+  /* ---------- Aufbau ---------- */
+  var codeEl = document.getElementById("code"), lineEls = [], curEx = -1;
+  function buildCode(list){
+    codeEl.innerHTML = ""; lineEls = [];
+    for(var k = 0; k < list.length; k++){
+      var s = document.createElement("span");
+      s.className = "ln";
+      s.innerHTML = '<span class="num">' + (k + 1) + '</span>' + list[k];
+      codeEl.appendChild(s); lineEls.push(s);
+    }
+  }
+
+  var tabsEl = document.getElementById("tabs"), tabBtns = [], t;
+  for(t = 0; t < EX.length; t++){
+    (function(idx){
+      var b = document.createElement("button");
+      b.appendChild(document.createTextNode(EX[idx].name));
+      b.onclick = function(){ setPlay(false); show(idx, 0); };
+      tabsEl.appendChild(b); tabBtns.push(b);
+    })(t);
+  }
+
+  var namesEl = document.getElementById("names"), objsEl = document.getElementById("objs"),
+      stackEl = document.getElementById("stack"), noteEl = document.getElementById("note"),
+      codeT = document.getElementById("codetitle"), consEl = document.getElementById("console"),
+      capEl = document.getElementById("caption"), cntEl = document.getElementById("counter"),
+      playBtn = document.getElementById("play"), prevBtn = document.getElementById("prev"),
+      nextBtn = document.getElementById("next");
+  var ex = 0, i = 0, playing = false, timer = null;
+  var steps = EX[0].steps;
+
+  function show(newEx, newI){
+    ex = newEx; steps = EX[ex].steps; i = newI;
+    if(curEx !== ex){ buildCode(EX[ex].code); curEx = ex; }
+    render();
+  }
+
+  function render(){
+    var s = steps[i], k, cls;
+    for(k = 0; k < lineEls.length; k++){
+      cls = "ln";
+      if(k === s.line) cls += " active";
+      else if(k === s.caller) cls += " caller";
+      lineEls[k].className = cls;
+    }
+    namesEl.innerHTML = s.names.join("");
+    objsEl.innerHTML = s.objs.join("");
+    stackEl.innerHTML = s.stack.length ? s.stack.join("") : '<div class="stack-empty">leer</div>';
+    noteEl.innerHTML = s.note;
+    codeT.innerHTML = s.codetitle;
+    consEl.textContent = s.out;
+    capEl.innerHTML = s.cap;
+    for(k = 0; k < tabBtns.length; k++) tabBtns[k].className = (k === ex) ? "active" : "";
+    cntEl.innerHTML = "Schritt " + (i + 1) + " / " + steps.length;
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === steps.length - 1);
+  }
+  function schedule(){
+    if(timer) clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(function(){
+      if(i < steps.length - 1){ i++; render(); schedule(); }
+      else { playing = false; playBtn.innerHTML = "▶ Abspielen"; }
+    }, steps[i].dur);
+  }
+  function setPlay(v){
+    playing = v;
+    playBtn.innerHTML = v ? "❚❚ Pause" : "▶ Abspielen";
+    if(v){ if(i >= steps.length - 1){ i = 0; render(); } schedule(); }
+    else if(timer) clearTimeout(timer);
+  }
+  playBtn.onclick = function(){ setPlay(!playing); };
+  nextBtn.onclick = function(){ setPlay(false); if(i < steps.length - 1){ i++; render(); } };
+  prevBtn.onclick = function(){ setPlay(false); if(i > 0){ i--; render(); } };
+  document.getElementById("reset").onclick = function(){ setPlay(false); i = 0; render(); };
+  document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowRight"){ setPlay(false); if(i < steps.length - 1){ i++; render(); } }
+    if(e.key === "ArrowLeft"){ setPlay(false); if(i > 0){ i--; render(); } }
+    if(e.key === " "){ e.preventDefault(); setPlay(!playing); }
+  });
+
+  show(0, 0);
+})();
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | Datei | Learning Unit | Thema |
 |---|---|---|
 | `index.html` | – | Übersicht aller Animationen |
+| `lu01/tracetable.html` | LU01d | Trace Table zeilenweise aufgebaut: lineare Suche, Collatz-Folge |
 | `lu02/pure-vs-unpure.html` | LU02b | Determinismus: gleiche Eingabe, gleiches Ergebnis? Mit und ohne globalen Zustand |
 | `lu02/byvalue-byreference.html` | LU02d | By Value / By Reference: Speichermodell beim Funktionsaufruf, `int` vs. `list` |
 | `lu02/objekte-und-standardwerte.html` | LU02e | Objekte by reference, `frozen=True`, geteilter mutable Standardwert |
@@ -21,6 +22,10 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | `lu03/l01-verzeichnisbaum.html` | LU03.L01 | Musterlösung Verzeichnisbaum, alle 5 Schritte inkl. Code-Aufbau |
 | `lu03/l02-zinseszins.html` | LU03.L02 | Musterlösung Zinseszins, alle 5 Schritte inkl. Code-Aufbau |
 | `lu03/l07-abschreibung.html` | LU03.L07 | Musterlösung Abschreibung, alle 5 Schritte inkl. Code-Aufbau |
+
+| `lu04/generatoren.html` | LU04h/i | Lazy Evaluation: wo `yield` anhält, Generator Expression vs. List Comprehension, Einmaligkeit |
+| `lu05/closures.html` | LU05c | Rahmen verschwindet, Zelle überlebt; zwei unabhängige Closures aus derselben Fabrik |
+| `lu05/decorator.html` | LU05d | `@` als Zuweisung, Name wird umgehängt; Decorator mit eigenem Parameter |
 
 Die `a*`-Dateien gehören auf die **Aufgabenseite** und zeigen keine Lösung, die `l*`-Dateien auf die
 **Lösungsseite** und bauen den Code in Schritt 5 Zeile für Zeile aus den erarbeiteten Regeln auf.

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU05c – Closures: was die Funktion überlebt</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4; --panel:#f6f8fa;
+  --hl:#fff3c4; --hl-border:#e5b800;
+  --accent:#0b62c4; --accent-soft:#e7f0fb;
+  --new:#0a7d55; --new-soft:#e4f5ee;
+  --warn:#b3541e; --warn-soft:#fbeee4;
+  --console-bg:#20262c; --console-fg:#e6edf3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d; --panel:#1c2229;
+    --hl:#3d3413; --hl-border:#b79600;
+    --accent:#65a9f5; --accent-soft:#1d2c3d;
+    --new:#4fc99a; --new-soft:#16302a;
+    --warn:#e79465; --warn-soft:#33231a;
+    --console-bg:#0d1117; --console-fg:#e6edf3;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5}
+.app{max-width:1020px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;line-height:1.3}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 0;max-width:62ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-radius:999px;font-size:13px;padding:6px 12px;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.tabs button:hover{border-color:var(--accent);color:var(--accent)}
+.tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(300px,1fr) minmax(290px,1fr);gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;
+  margin:0;min-height:172px;overflow-x:auto;white-space:pre}
+.code .ln{display:block;padding:0 6px 0 0;border-left:3px solid transparent;border-radius:0 3px 3px 0;
+  transition:background .25s,border-color .25s}
+.code .ln .num{display:inline-block;width:22px;text-align:right;margin-right:9px;color:var(--muted);opacity:.55;
+  -webkit-user-select:none;user-select:none}
+.code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .cm{color:var(--muted)}
+.console{margin-top:9px;background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+  padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:40px;
+  white-space:pre-wrap}
+.console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+/* Speicherbereiche */
+.col-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 5px}
+.zone{margin-bottom:11px}
+.stack{display:flex;flex-direction:column-reverse;gap:5px;min-height:44px}
+.frame{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--bg);border-radius:5px;
+  padding:6px 9px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+  transition:opacity .35s,border-color .3s,background .3s}
+.frame .fn{font-weight:600;color:var(--accent)}
+.frame .lv{color:var(--muted);margin-top:2px;display:block}
+.frame.dying{opacity:.3;border-left-color:var(--warn)}
+.frame.dying .fn{color:var(--warn)}
+.stack-empty{color:var(--muted);opacity:.7;font-style:italic;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+
+.cellrow{display:flex;gap:8px;flex-wrap:wrap}
+.cell{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--bg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);
+  transition:all .3s}
+.cell .k{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
+.cell b{color:var(--fg);font-weight:600;font-size:13px}
+.cell.live{border-color:var(--new);background:var(--new-soft)}
+.cell.live b,.cell.live .k{color:var(--new)}
+.cell.hot{border-color:var(--hl-border);background:var(--hl)}
+.cell.hot b{color:var(--fg)}
+.cell.ghost{border-style:dashed;opacity:.45}
+
+.names{display:flex;flex-direction:column;gap:5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.name{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:5px;
+  padding:5px 9px;background:var(--bg);color:var(--muted);transition:all .3s}
+.name .arw{color:var(--accent)}
+.name b{color:var(--fg);font-weight:600}
+.name.live{border-color:var(--new);background:var(--new-soft)}
+.name.live b,.name.live .arw{color:var(--new)}
+.name.hot{border-color:var(--hl-border);background:var(--hl)}
+
+.note{border:1px solid var(--line);border-radius:5px;padding:6px 9px;background:var(--bg);color:var(--muted);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;margin-top:8px}
+.note.good{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.note.warn{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.note b{font-weight:600}
+
+.caption{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 6px 6px 0;padding:9px 12px;font-size:14px;min-height:62px}
+.caption code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.controls{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls button{border-radius:6px;font-size:13.5px;font-weight:600;padding:8px 16px;background:var(--panel);
+  border:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.controls button:hover{border-color:var(--accent);color:var(--accent)}
+.controls button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+.controls button#next{background:var(--accent);color:#fff;border-color:var(--accent)}
+.controls button#next:hover{opacity:.9;color:#fff}
+.controls button#play{min-width:112px}
+.counter{font-size:12.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hint{margin-top:8px;font-size:12.5px;color:var(--muted)}
+@media (max-width:780px){ .main{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition-duration:.01ms !important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div>
+      <h1>Closures: was die Funktion überlebt</h1>
+      <p class="sub">Eine innere Funktion greift auf eine Variable der äusseren zu. Die spannende Frage ist,
+      was passiert, wenn die äussere Funktion längst <b>fertig</b> ist – und ihre Variable trotzdem noch gebraucht wird.</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2 id="codetitle">Code</h2>
+      <pre class="code" id="code"></pre>
+      <div class="console" id="console"></div>
+    </div>
+    <div class="panel">
+      <h2>Speicher</h2>
+      <div class="zone">
+        <p class="col-title">Aufruf-Stack</p>
+        <div class="stack" id="stack"></div>
+      </div>
+      <div class="zone">
+        <p class="col-title">Zellen der äusseren Funktion</p>
+        <div class="cellrow" id="cells"></div>
+      </div>
+      <div class="zone">
+        <p class="col-title">Namen</p>
+        <div class="names" id="names"></div>
+      </div>
+      <div id="note"></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="play">▶ Abspielen</button>
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen, mit der Leertaste abspielen und pausieren.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CODE_A = [
+    "def outer_function(x):",
+    "    def inner_function(y):",
+    "        return x + y",
+    "    return inner_function",
+    "",
+    "add_five = outer_function(5)",
+    "print(add_five(3))"
+  ];
+
+  var CODE_B = [
+    "add_five = outer_function(5)",
+    "add_ten  = outer_function(10)",
+    "",
+    "print(add_five(3))",
+    "print(add_ten(3))",
+    "",
+    "print(add_five.__closure__[0].cell_contents)",
+    "print(add_ten.__closure__[0].cell_contents)"
+  ];
+
+  function pace(d){
+    d = Math.round((d || 3000) * 0.55);
+    if(d < 1100) d = 1100;
+    if(d > 3200) d = 3200;
+    return d;
+  }
+  function mk(o){
+    return {line:o.line === undefined ? -1 : o.line, stack:o.stack || [], cells:o.cells || [],
+      names:o.names || [], note:o.note || "", out:o.out || "", codetitle:o.codetitle || "Code",
+      cap:o.cap, dur:pace(o.dur)};
+  }
+  function frame(name, locals, dying){
+    return '<div class="frame' + (dying ? " dying" : "") + '"><span class="fn">' + name + '</span>' +
+           (locals ? '<span class="lv">' + locals + '</span>' : '') + '</div>';
+  }
+  function cell(k, v, cls){
+    return '<div class="cell ' + (cls || "") + '"><span class="k">' + k + '</span><b>' + v + '</b></div>';
+  }
+  function nm(n, target, cls){
+    return '<div class="name ' + (cls || "") + '">' + n + ' <span class="arw">&rarr;</span> <b>' + target + '</b></div>';
+  }
+
+  /* ================= Beispiel 1 ================= */
+  var A = [];
+
+  A.push(mk({line:0,dur:3600,
+    names:[nm("outer_function","Funktionsobjekt")],
+    note:'<div class="note">Nur eine Definition. Der Rumpf ist noch nie gelaufen.</div>',
+    cap:"Ausgangslage: <code>outer_function</code> ist definiert, sonst nichts. Die innere Funktion <code>inner_function</code> existiert noch nicht – <code>def</code> im Rumpf wird erst beim Aufruf ausgeführt."}));
+
+  A.push(mk({line:5,dur:4200,
+    stack:[frame("outer_function(5)","x = 5")],
+    names:[nm("outer_function","Funktionsobjekt")],
+    note:'<div class="note">Ein neuer Rahmen auf dem Stack, mit dem Parameter <b>x = 5</b>.</div>',
+    cap:"<code>outer_function(5)</code> wird aufgerufen: ein Rahmen kommt auf den Stack, darin lebt <code>x</code> mit dem Wert 5."}));
+
+  A.push(mk({line:1,dur:4600,
+    stack:[frame("outer_function(5)","x = 5")],
+    cells:[cell("x","5","hot")],
+    names:[nm("outer_function","Funktionsobjekt"),nm("inner_function","neues Funktionsobjekt","hot")],
+    note:'<div class="note good">Das Objekt <b>inner_function</b> merkt sich keine Kopie von x – es merkt sich die <b>Zelle</b>.</div>',
+    cap:"Jetzt läuft das innere <code>def</code>: ein zweites Funktionsobjekt entsteht. Entscheidend ist, was es mitbekommt – <b>nicht</b> den Wert 5, sondern einen Verweis auf die Zelle, in der <code>x</code> liegt."}));
+
+  A.push(mk({line:3,dur:3600,
+    stack:[frame("outer_function(5)","x = 5")],
+    cells:[cell("x","5","live")],
+    names:[nm("outer_function","Funktionsobjekt"),nm("inner_function","Funktionsobjekt + Zelle x","live")],
+    note:'<div class="note">Zurückgegeben wird die Funktion – <b>nicht</b> ihr Ergebnis. Keine Klammern hinter inner_function.</div>',
+    cap:"<code>return inner_function</code> gibt das Funktionsobjekt selbst zurück. Ein häufiger Fehler an dieser Stelle: <code>return inner_function()</code> zu schreiben – das würde die Funktion aufrufen statt sie herzugeben."}));
+
+  A.push(mk({line:5,dur:6500,
+    stack:[frame("outer_function(5)","x = 5",true)],
+    cells:[cell("x","5","live")],
+    names:[nm("outer_function","Funktionsobjekt"),nm("add_five","Funktionsobjekt + Zelle x","live")],
+    note:'<div class="note good"><b>Der Kern der Sache:</b> Rahmen weg, Zelle bleibt.</div>',
+    cap:"<b>Hier passiert das Entscheidende.</b> <code>outer_function</code> ist fertig, ihr Rahmen verschwindet vom Stack. Die Zelle mit <code>x = 5</code> bleibt aber bestehen – weil das zurückgegebene Funktionsobjekt sie noch braucht. Genau diese Kombination aus Funktion und überlebender Zelle heisst <b>Closure</b>."}));
+
+  A.push(mk({line:6,dur:4000,
+    stack:[frame("add_five(3)","y = 3")],
+    cells:[cell("x","5","live")],
+    names:[nm("add_five","Funktionsobjekt + Zelle x","live")],
+    note:'<div class="note">Der neue Rahmen kennt nur <b>y</b>. Von <b>x</b> steht hier nichts.</div>',
+    cap:"Später, an ganz anderer Stelle im Programm: <code>add_five(3)</code>. Ein frischer Rahmen entsteht, darin liegt nur <code>y = 3</code>."}));
+
+  A.push(mk({line:2,dur:5200,
+    stack:[frame("add_five(3)","y = 3")],
+    cells:[cell("x","5","hot")],
+    names:[nm("add_five","Funktionsobjekt + Zelle x","live")],
+    note:'<div class="note good">x aus der Zelle, y aus dem Rahmen &rarr; 5 + 3</div>',
+    cap:"<code>return x + y</code>: <code>y</code> findet Python im aktuellen Rahmen, <code>x</code> nirgends dort – also schaut es in die Zelle, die am Funktionsobjekt hängt. Dort steht immer noch die 5."}));
+
+  A.push(mk({line:6,dur:7000,out:"8",
+    cells:[cell("x","5","live")],
+    names:[nm("add_five","Funktionsobjekt + Zelle x","live")],
+    note:'<div class="note good"><b>8</b> – aus einer Variablen, deren Funktion längst beendet ist.</div>',
+    cap:"<b>Ergebnis 8.</b> Und das ist der Punkt, an dem Closures nützlich werden: <code>add_five</code> hat einen eigenen, festen Zustand mitbekommen, ohne globale Variable und ohne Klasse. Genau darauf bauen später die Decorators auf."}));
+
+  /* ================= Beispiel 2 ================= */
+  var B = [];
+
+  B.push(mk({line:0,dur:3800,codetitle:"Zwei Closures aus derselben Funktion",
+    cells:[cell("x","5","live")],
+    names:[nm("add_five","Funktionsobjekt + Zelle x=5","live")],
+    note:'<div class="note">Erster Aufruf, erste Zelle.</div>',
+    cap:"Dieselbe <code>outer_function</code> wie vorher, nun zweimal aufgerufen. Der erste Aufruf hinterlässt eine Zelle mit 5."}));
+
+  B.push(mk({line:1,dur:5200,codetitle:"Zwei Closures aus derselben Funktion",
+    cells:[cell("x","5","live"),cell("x","10","hot")],
+    names:[nm("add_five","Funktionsobjekt + Zelle x=5","live"),nm("add_ten","Funktionsobjekt + Zelle x=10","hot")],
+    note:'<div class="note good">Jeder Aufruf erzeugt einen <b>eigenen</b> Rahmen – und damit eine <b>eigene</b> Zelle.</div>',
+    cap:"Der zweite Aufruf legt einen völlig neuen Rahmen an und hinterlässt eine <b>zweite, unabhängige</b> Zelle. Die beiden teilen sich nichts, obwohl sie aus derselben Funktion stammen."}));
+
+  B.push(mk({line:3,dur:4000,out:"8",codetitle:"Zwei Closures aus derselben Funktion",
+    cells:[cell("x","5","hot"),cell("x","10","live")],
+    names:[nm("add_five","&rarr; Zelle x=5","hot"),nm("add_ten","&rarr; Zelle x=10","live")],
+    note:'<div class="note">add_five schaut in seine Zelle: 3 + 5</div>',
+    cap:"<code>add_five(3)</code> greift auf seine Zelle zu – 5 – und liefert 8."}));
+
+  B.push(mk({line:4,dur:4400,out:"8\n13",codetitle:"Zwei Closures aus derselben Funktion",
+    cells:[cell("x","5","live"),cell("x","10","hot")],
+    names:[nm("add_five","&rarr; Zelle x=5","live"),nm("add_ten","&rarr; Zelle x=10","hot")],
+    note:'<div class="note">add_ten schaut in seine eigene Zelle: 3 + 10</div>',
+    cap:"<code>add_ten(3)</code> liefert 13. Zwei Funktionen, derselbe Code, verschiedenes Verhalten – der Unterschied steckt allein in der mitgeführten Zelle. Man nennt <code>outer_function</code> deshalb eine <b>Funktionsfabrik</b>."}));
+
+  B.push(mk({line:6,dur:5000,out:"8\n13\n5",codetitle:"Zwei Closures aus derselben Funktion",
+    cells:[cell("x","5","hot"),cell("x","10","live")],
+    names:[nm("add_five","&rarr; Zelle x=5","hot"),nm("add_ten","&rarr; Zelle x=10","live")],
+    note:'<div class="note good">Die Zelle ist nicht bloss ein Bild – man kann sie anschauen.</div>',
+    cap:"Die Zellen sind keine Metapher: über <code>__closure__</code> lassen sie sich direkt auslesen. Für <code>add_five</code> steht dort tatsächlich eine 5."}));
+
+  B.push(mk({line:7,dur:7000,out:"8\n13\n5\n10",codetitle:"Zwei Closures aus derselben Funktion",
+    cells:[cell("x","5","live"),cell("x","10","hot")],
+    names:[nm("add_five","&rarr; Zelle x=5","live"),nm("add_ten","&rarr; Zelle x=10","hot")],
+    note:'<div class="note good">Zwei Zellen, zwei Werte: 5 und 10.</div>',
+    cap:"<b>Beweis erbracht:</b> zwei getrennte Zellen mit 5 und 10. Wer eine Funktion braucht, die sich etwas merkt, aber keine Klasse schreiben will, baut sie genau so. Zum Schreiben – nicht nur Lesen – der äusseren Variablen bräuchte es zusätzlich das Schlüsselwort <code>nonlocal</code>."}));
+
+  var EX = [
+    {name:"1 · Eine Closure entsteht", steps:A, code:CODE_A},
+    {name:"2 · Zwei unabhängige Closures", steps:B, code:CODE_B}
+  ];
+
+  /* ---------- Aufbau ---------- */
+  var codeEl = document.getElementById("code"), lineEls = [], curEx = -1;
+  function buildCode(list){
+    codeEl.innerHTML = ""; lineEls = [];
+    for(var k = 0; k < list.length; k++){
+      var s = document.createElement("span");
+      s.className = "ln";
+      s.innerHTML = '<span class="num">' + (k + 1) + '</span>' + list[k];
+      codeEl.appendChild(s); lineEls.push(s);
+    }
+  }
+
+  var tabsEl = document.getElementById("tabs"), tabBtns = [], t;
+  for(t = 0; t < EX.length; t++){
+    (function(idx){
+      var b = document.createElement("button");
+      b.appendChild(document.createTextNode(EX[idx].name));
+      b.onclick = function(){ setPlay(false); show(idx, 0); };
+      tabsEl.appendChild(b); tabBtns.push(b);
+    })(t);
+  }
+
+  var stackEl = document.getElementById("stack"), cellsEl = document.getElementById("cells"),
+      namesEl = document.getElementById("names"), noteEl = document.getElementById("note"),
+      codeT = document.getElementById("codetitle"), consEl = document.getElementById("console"),
+      capEl = document.getElementById("caption"), cntEl = document.getElementById("counter"),
+      playBtn = document.getElementById("play"), prevBtn = document.getElementById("prev"),
+      nextBtn = document.getElementById("next");
+  var ex = 0, i = 0, playing = false, timer = null;
+  var steps = EX[0].steps;
+
+  function show(newEx, newI){
+    ex = newEx; steps = EX[ex].steps; i = newI;
+    if(curEx !== ex){ buildCode(EX[ex].code); curEx = ex; }
+    render();
+  }
+
+  function render(){
+    var s = steps[i], k;
+    for(k = 0; k < lineEls.length; k++){
+      lineEls[k].className = "ln" + (k === s.line ? " active" : "");
+    }
+    stackEl.innerHTML = s.stack.length ? s.stack.join("") : '<div class="stack-empty">leer</div>';
+    cellsEl.innerHTML = s.cells.length ? s.cells.join("") : '<div class="stack-empty">noch keine</div>';
+    namesEl.innerHTML = s.names.join("");
+    noteEl.innerHTML = s.note;
+    codeT.innerHTML = s.codetitle;
+    consEl.textContent = s.out;
+    capEl.innerHTML = s.cap;
+    for(k = 0; k < tabBtns.length; k++) tabBtns[k].className = (k === ex) ? "active" : "";
+    cntEl.innerHTML = "Schritt " + (i + 1) + " / " + steps.length;
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === steps.length - 1);
+  }
+  function schedule(){
+    if(timer) clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(function(){
+      if(i < steps.length - 1){ i++; render(); schedule(); }
+      else { playing = false; playBtn.innerHTML = "▶ Abspielen"; }
+    }, steps[i].dur);
+  }
+  function setPlay(v){
+    playing = v;
+    playBtn.innerHTML = v ? "❚❚ Pause" : "▶ Abspielen";
+    if(v){ if(i >= steps.length - 1){ i = 0; render(); } schedule(); }
+    else if(timer) clearTimeout(timer);
+  }
+  playBtn.onclick = function(){ setPlay(!playing); };
+  nextBtn.onclick = function(){ setPlay(false); if(i < steps.length - 1){ i++; render(); } };
+  prevBtn.onclick = function(){ setPlay(false); if(i > 0){ i--; render(); } };
+  document.getElementById("reset").onclick = function(){ setPlay(false); i = 0; render(); };
+  document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowRight"){ setPlay(false); if(i < steps.length - 1){ i++; render(); } }
+    if(e.key === "ArrowLeft"){ setPlay(false); if(i > 0){ i--; render(); } }
+    if(e.key === " "){ e.preventDefault(); setPlay(!playing); }
+  });
+
+  show(0, 0);
+})();
+</script>
+</body>
+</html>

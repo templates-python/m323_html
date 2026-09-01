@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU01d – Trace Table: Zeile für Zeile mitschreiben</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4; --panel:#f6f8fa;
+  --hl:#fff3c4; --hl-border:#e5b800;
+  --accent:#0b62c4; --accent-soft:#e7f0fb;
+  --new:#0a7d55; --new-soft:#e4f5ee;
+  --warn:#b3541e; --warn-soft:#fbeee4;
+  --console-bg:#20262c; --console-fg:#e6edf3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d; --panel:#1c2229;
+    --hl:#3d3413; --hl-border:#b79600;
+    --accent:#65a9f5; --accent-soft:#1d2c3d;
+    --new:#4fc99a; --new-soft:#16302a;
+    --warn:#e79465; --warn-soft:#33231a;
+    --console-bg:#0d1117; --console-fg:#e6edf3;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5}
+.app{max-width:1020px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;line-height:1.3}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 0;max-width:62ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-radius:999px;font-size:13px;padding:6px 12px;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.tabs button:hover{border-color:var(--accent);color:var(--accent)}
+.tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(290px,.9fr) minmax(320px,1.1fr);gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;
+  margin:0;min-height:180px;overflow-x:auto;white-space:pre}
+.code .ln{display:block;padding:0 6px 0 0;border-left:3px solid transparent;border-radius:0 3px 3px 0;
+  transition:background .25s,border-color .25s}
+.code .ln .num{display:inline-block;width:22px;text-align:right;margin-right:9px;color:var(--muted);opacity:.55;
+  -webkit-user-select:none;user-select:none}
+.code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .cm{color:var(--muted)}
+.console{margin-top:9px;background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+  padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:36px;
+  white-space:pre-wrap}
+.console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+/* Trace Table */
+.tablewrap{overflow-x:auto;min-height:214px}
+table{border-collapse:collapse;width:100%;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.06em;padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:4px 8px;border-bottom:1px solid var(--line);color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap;transition:background .3s,color .3s}
+tr.now td{background:var(--hl);color:var(--fg)}
+tr.hit td{background:var(--new-soft);color:var(--new);font-weight:600}
+tr.miss td{color:var(--muted)}
+td.k{color:var(--fg)}
+tr.now td.k{color:var(--fg)}
+.empty{color:var(--muted);opacity:.7;font-style:italic;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:6px 0}
+
+.vars{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+.var{border:1px solid var(--line);border-radius:5px;padding:3px 9px;background:var(--bg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--fg);transition:all .25s}
+.var.chg{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.var i{font-style:normal;color:var(--muted)}
+.var.chg i{color:var(--new)}
+
+.caption{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 6px 6px 0;padding:9px 12px;font-size:14px;min-height:58px}
+.caption code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.controls{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls button{border-radius:6px;font-size:13.5px;font-weight:600;padding:8px 16px;background:var(--panel);
+  border:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.controls button:hover{border-color:var(--accent);color:var(--accent)}
+.controls button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+.controls button#next{background:var(--accent);color:#fff;border-color:var(--accent)}
+.controls button#next:hover{opacity:.9;color:#fff}
+.controls button#play{min-width:112px}
+.counter{font-size:12.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hint{margin-top:8px;font-size:12.5px;color:var(--muted)}
+@media (max-width:780px){ .main{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition-duration:.01ms !important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div>
+      <h1>Trace Table: Zeile für Zeile mitschreiben</h1>
+      <p class="sub">Eine Trace Table hält fest, welche Werte die Variablen bei jedem Durchlauf annehmen.
+      Hier wird sie so aufgebaut, wie du sie von Hand schreiben würdest – eine Zeile pro Durchgang,
+      während der Code daneben mitläuft.</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2 id="codetitle">Code</h2>
+      <pre class="code" id="code"></pre>
+      <div class="console" id="console"></div>
+    </div>
+    <div class="panel">
+      <h2 id="tabletitle">Trace Table</h2>
+      <div class="tablewrap"><table id="table"></table></div>
+      <div class="vars" id="vars"></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="play">▶ Abspielen</button>
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen, mit der Leertaste abspielen und pausieren.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  function pace(d){
+    d = Math.round((d || 3000) * 0.55);
+    if(d < 1100) d = 1100;
+    if(d > 3200) d = 3200;
+    return d;
+  }
+  function vars(list){
+    var h = "", k;
+    for(k = 0; k < list.length; k++){
+      h += '<span class="var' + (list[k][2] ? " chg" : "") + '">' + list[k][0] + ' <i>=</i> ' + list[k][1] + '</span>';
+    }
+    return h;
+  }
+
+  /* ============ Beispiel 1: Lineare Suche ============ */
+  var CODE_A = [
+    "def lineare_suche(liste, gesucht):",
+    "    <span class=\"cm\">for</span> i <span class=\"cm\">in</span> range(len(liste)):",
+    "        <span class=\"cm\">if</span> liste[i] == gesucht:",
+    "            <span class=\"cm\">return</span> i",
+    "    <span class=\"cm\">return</span> -1",
+    "",
+    "print(lineare_suche([4, 8, 15, 16], 15))"
+  ];
+  var HEAD_A = ["Durchgang","i","liste[i]","liste[i] == 15","Rückgabe"];
+
+  var LISTE = [4, 8, 15, 16], GESUCHT = 15;
+  var A = [], rowsA = [];
+
+  A.push({line:6,rows:[],out:"",vars:vars([["liste","[4, 8, 15, 16]",false],["gesucht","15",false]]),dur:3600,
+    cap:"Aufruf mit der Liste <code>[4, 8, 15, 16]</code>, gesucht wird die <code>15</code>. Die Trace Table ist noch leer – jede Runde der Schleife wird gleich eine Zeile."});
+
+  (function(){
+    var found = -1, k;
+    for(k = 0; k < LISTE.length; k++){
+      var hit = (LISTE[k] === GESUCHT);
+      rowsA.push({cells:[String(k + 1), String(k), String(LISTE[k]), hit ? "wahr" : "falsch", hit ? String(k) : "–"],
+                  cls: hit ? "hit" : "miss"});
+      A.push({line: hit ? 3 : 2, rows:rowsA.slice(0), now:rowsA.length - 1, out:"",
+        vars:vars([["i", String(k), true],["liste[i]", String(LISTE[k]), true]]),
+        dur: hit ? 5000 : 3000,
+        cap: hit
+          ? "<b>Treffer bei i = " + k + ".</b> Die Bedingung ist wahr, also wird sofort <code>return " + k + "</code> ausgeführt – die Schleife bricht ab. Die Zeilen darunter werden nie geschrieben."
+          : "Durchgang " + (k + 1) + ": <code>liste[" + k + "]</code> ist " + LISTE[k] + ", das ist nicht 15. Die Zeile wird als <em>falsch</em> notiert, die Schleife läuft weiter."});
+      if(hit){ found = k; break; }
+    }
+    A.push({line:6,rows:rowsA.slice(0),now:-1,out:"2",
+      vars:vars([["Rückgabe", String(found), true]]),dur:7000,
+      cap:"<b>Ausgabe 2.</b> Und genau darum lohnt sich die Tabelle: sie zeigt schwarz auf weiss, dass die Schleife nach <b>drei</b> Durchgängen abbricht und die vierte Zeile gar nicht mehr entsteht. Wer nur den Code liest, übersieht das leicht."});
+  })();
+
+  /* ============ Beispiel 2: Collatz ============ */
+  var CODE_B = [
+    "n = 6",
+    "schritte = 0",
+    "",
+    "<span class=\"cm\">while</span> n != 1:",
+    "    <span class=\"cm\">if</span> n % 2 == 0:",
+    "        n = n // 2",
+    "    <span class=\"cm\">else</span>:",
+    "        n = 3 * n + 1",
+    "    schritte = schritte + 1",
+    "",
+    "print(schritte)"
+  ];
+  var HEAD_B = ["Durchgang","n vorher","n gerade?","Rechnung","n nachher","schritte"];
+
+  var B = [], rowsB = [];
+
+  B.push({line:1,rows:[],out:"",vars:vars([["n","6",false],["schritte","0",false]]),dur:3600,
+    cap:"Die Collatz-Folge: gerade Zahl halbieren, ungerade Zahl mal drei plus eins – so lange, bis 1 herauskommt. Gezählt wird, wie viele Schritte das braucht."});
+
+  (function(){
+    var n = 6, schritte = 0, guard = 0;
+    while(n !== 1 && guard < 40){
+      guard++;
+      var vorher = n, gerade = (n % 2 === 0), rech, nachher;
+      if(gerade){ rech = vorher + " // 2"; nachher = vorher / 2; }
+      else { rech = "3 · " + vorher + " + 1"; nachher = 3 * vorher + 1; }
+      n = nachher; schritte++;
+      rowsB.push({cells:[String(schritte), String(vorher), gerade ? "ja" : "nein", rech, String(nachher), String(schritte)],
+                  cls: (n === 1) ? "hit" : ""});
+      B.push({line: gerade ? 5 : 7, rows:rowsB.slice(0), now:rowsB.length - 1, out:"",
+        vars:vars([["n", String(n), true],["schritte", String(schritte), true]]),
+        dur: (n === 1) ? 4600 : (schritte <= 2 ? 3400 : 2200),
+        cap: (n === 1)
+          ? "<b>n ist 1</b> – die Schleifenbedingung <code>n != 1</code> ist damit falsch und die Schleife endet."
+          : (gerade
+             ? "<code>" + vorher + "</code> ist gerade &rarr; halbieren ergibt <code>" + nachher + "</code>."
+             : "<code>" + vorher + "</code> ist ungerade &rarr; <code>3 · " + vorher + " + 1 = " + nachher + "</code>. Die Zahl wird also erst einmal <b>grösser</b>.")});
+    }
+    B.push({line:10,rows:rowsB.slice(0),now:-1,out:String(schritte),
+      vars:vars([["n","1",false],["schritte", String(schritte), true]]),dur:7000,
+      cap:"<b>" + schritte + " Schritte.</b> Die Tabelle macht sichtbar, was am Code nicht abzulesen ist: die Folge steigt zwischendurch auf 16, bevor sie fällt. Genau solche Verläufe sind der Grund, eine Trace Table zu schreiben, statt im Kopf zu rechnen."});
+  })();
+
+  var EX = [
+    {name:"1 · Lineare Suche", steps:A, code:CODE_A, head:HEAD_A, title:"Trace Table · lineare Suche"},
+    {name:"2 · Collatz-Folge", steps:B, code:CODE_B, head:HEAD_B, title:"Trace Table · Collatz"}
+  ];
+  var e, q;
+  for(e = 0; e < EX.length; e++) for(q = 0; q < EX[e].steps.length; q++) EX[e].steps[q].dur = pace(EX[e].steps[q].dur);
+
+  /* ---------- Aufbau ---------- */
+  var codeEl = document.getElementById("code"), lineEls = [], curEx = -1;
+  function buildCode(list){
+    codeEl.innerHTML = ""; lineEls = [];
+    for(var k = 0; k < list.length; k++){
+      var s = document.createElement("span");
+      s.className = "ln";
+      s.innerHTML = '<span class="num">' + (k + 1) + '</span>' + list[k];
+      codeEl.appendChild(s); lineEls.push(s);
+    }
+  }
+
+  var tabsEl = document.getElementById("tabs"), tabBtns = [], t;
+  for(t = 0; t < EX.length; t++){
+    (function(idx){
+      var b = document.createElement("button");
+      b.appendChild(document.createTextNode(EX[idx].name));
+      b.onclick = function(){ setPlay(false); show(idx, 0); };
+      tabsEl.appendChild(b); tabBtns.push(b);
+    })(t);
+  }
+
+  var tableEl = document.getElementById("table"), tableT = document.getElementById("tabletitle"),
+      varsEl = document.getElementById("vars"), consEl = document.getElementById("console"),
+      codeT = document.getElementById("codetitle"), capEl = document.getElementById("caption"),
+      cntEl = document.getElementById("counter"), playBtn = document.getElementById("play"),
+      prevBtn = document.getElementById("prev"), nextBtn = document.getElementById("next");
+  var ex = 0, i = 0, playing = false, timer = null;
+  var steps = EX[0].steps;
+
+  function show(newEx, newI){
+    ex = newEx; steps = EX[ex].steps; i = newI;
+    if(curEx !== ex){ buildCode(EX[ex].code); curEx = ex; }
+    render();
+  }
+
+  function render(){
+    var s = steps[i], k, c, h;
+    for(k = 0; k < lineEls.length; k++) lineEls[k].className = "ln" + (k === s.line ? " active" : "");
+
+    h = "<tr>";
+    for(k = 0; k < EX[ex].head.length; k++) h += "<th>" + EX[ex].head[k] + "</th>";
+    h += "</tr>";
+    if(!s.rows.length){
+      h += '<tr><td colspan="' + EX[ex].head.length + '"><span class="empty">noch keine Zeile – die Schleife war noch nicht dran</span></td></tr>';
+    } else {
+      for(k = 0; k < s.rows.length; k++){
+        var cls = s.rows[k].cls;
+        if(k === s.now) cls = "now";
+        h += '<tr class="' + cls + '">';
+        for(c = 0; c < s.rows[k].cells.length; c++){
+          h += '<td' + (c === 0 ? ' class="k"' : '') + '>' + s.rows[k].cells[c] + '</td>';
+        }
+        h += "</tr>";
+      }
+    }
+    tableEl.innerHTML = h;
+    tableT.innerHTML = EX[ex].title;
+    codeT.innerHTML = "Code";
+    varsEl.innerHTML = s.vars;
+    consEl.textContent = s.out;
+    capEl.innerHTML = s.cap;
+    for(k = 0; k < tabBtns.length; k++) tabBtns[k].className = (k === ex) ? "active" : "";
+    cntEl.innerHTML = "Schritt " + (i + 1) + " / " + steps.length;
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === steps.length - 1);
+  }
+  function schedule(){
+    if(timer) clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(function(){
+      if(i < steps.length - 1){ i++; render(); schedule(); }
+      else { playing = false; playBtn.innerHTML = "▶ Abspielen"; }
+    }, steps[i].dur);
+  }
+  function setPlay(v){
+    playing = v;
+    playBtn.innerHTML = v ? "❚❚ Pause" : "▶ Abspielen";
+    if(v){ if(i >= steps.length - 1){ i = 0; render(); } schedule(); }
+    else if(timer) clearTimeout(timer);
+  }
+  playBtn.onclick = function(){ setPlay(!playing); };
+  nextBtn.onclick = function(){ setPlay(false); if(i < steps.length - 1){ i++; render(); } };
+  prevBtn.onclick = function(){ setPlay(false); if(i > 0){ i--; render(); } };
+  document.getElementById("reset").onclick = function(){ setPlay(false); i = 0; render(); };
+  document.addEventListener("keydown", function(e2){
+    if(e2.key === "ArrowRight"){ setPlay(false); if(i < steps.length - 1){ i++; render(); } }
+    if(e2.key === "ArrowLeft"){ setPlay(false); if(i > 0){ i--; render(); } }
+    if(e2.key === " "){ e2.preventDefault(); setPlay(!playing); }
+  });
+
+  show(0, 0);
+})();
+</script>
+</body>
+</html>
