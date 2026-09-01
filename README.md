@@ -15,6 +15,9 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | `lu02/byvalue-byreference.html` | LU02d | By Value / By Reference: Speichermodell beim Funktionsaufruf, `int` vs. `list` |
 | `lu02/objekte-und-standardwerte.html` | LU02e | Objekte by reference, `frozen=True`, geteilter mutable Standardwert |
 | `lu03/rekursion.html` | LU03b | Call Stack von `factorial(3)`, Aufrufbaum von `fibonacci(4)` mit Mehrfachberechnungen |
+| `lu03/a01-verzeichnisbaum.html` | LU03.A01 | Rekursive Suche im Verzeichnisbaum, Schritte 1–4 der 5-Schritte-Methode |
+| `lu03/a02-zinseszins.html` | LU03.A02 | Zinseszins rekursiv, Schritte 1–4 der 5-Schritte-Methode |
+| `lu03/a07-abschreibung.html` | LU03.A07 | Abschreibung rekursiv, Schritte 1–4 der 5-Schritte-Methode |
 
 ## GitHub Pages aktivieren
 
@@ -49,8 +52,13 @@ anpassen. Bei schmalen Fenstern klappt das Layout einspaltig um und braucht mehr
 * Ein Ordner pro Learning Unit (`lu02/`, `lu03/`, …), Dateiname beschreibt das Thema.
 * Vollständig standalone: CSS und JS inline, keine externen Requests.
 * Theme-aware: helle Palette auf `:root`, Dark Mode über `@media (prefers-color-scheme: dark)`.
-* **Kein Autoplay.** Steuerung über «Weiter»/«Zurück», zusätzlich Pfeiltasten – Lernende sollen
-  das Tempo bestimmen und Schritte vergleichen können.
+* **Beim Laden wird nicht abgespielt.** Steuerung über «Weiter»/«Zurück», zusätzlich Pfeiltasten –
+  Lernende sollen das Tempo bestimmen und Schritte vergleichen können. Ein «Abspielen»-Knopf darf
+  daneben stehen (für die Vorführung im Unterricht), muss aber ausgeschaltet starten und bei jedem
+  manuellen Schritt stoppen.
+* **Animationen zu Aufträgen zeigen die Lösung nicht.** Sie führen durch die Schritte 1 bis 4 der
+  5-Schritte-Methode (`lu03:rekursion2`) und halten die erkannten Regeln in Worten fest.
+  Schritt 5 – die Regel als Funktion – bleibt die Aufgabe der Lernenden. Kein Lösungscode in der Datei.
 * Jeder Schritt hat einen erklärenden Satz; der didaktisch entscheidende Schritt wird
   explizit als solcher markiert.
 * Neue Datei in `index.html` und in der Tabelle oben ergänzen.
