@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU03f – Callbacks: wer ruft wen, und wann?</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4; --panel:#f6f8fa;
+  --hl:#fff3c4; --hl-border:#e5b800;
+  --accent:#0b62c4; --accent-soft:#e7f0fb;
+  --new:#0a7d55; --new-soft:#e4f5ee;
+  --warn:#b3541e; --warn-soft:#fbeee4;
+  --console-bg:#20262c; --console-fg:#e6edf3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d; --panel:#1c2229;
+    --hl:#3d3413; --hl-border:#b79600;
+    --accent:#65a9f5; --accent-soft:#1d2c3d;
+    --new:#4fc99a; --new-soft:#16302a;
+    --warn:#e79465; --warn-soft:#33231a;
+    --console-bg:#0d1117; --console-fg:#e6edf3;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5}
+.app{max-width:1020px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;line-height:1.3}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 0;max-width:62ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-radius:999px;font-size:13px;padding:6px 12px;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.tabs button:hover{border-color:var(--accent);color:var(--accent)}
+.tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(300px,1.05fr) minmax(290px,.95fr);gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.hidden{display:none}
+
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;
+  margin:0;min-height:206px;overflow-x:auto;white-space:pre}
+.code .ln{display:block;padding:0 6px 0 0;border-left:3px solid transparent;border-radius:0 3px 3px 0;
+  transition:background .25s,border-color .25s}
+.code .ln .num{display:inline-block;width:22px;text-align:right;margin-right:9px;color:var(--muted);opacity:.55;
+  -webkit-user-select:none;user-select:none}
+.code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .ln.bad{background:var(--warn-soft);border-left-color:var(--warn)}
+.code .ln.waiting{background:var(--accent-soft);border-left-color:var(--accent)}
+.code .cm{color:var(--muted)}
+.console{margin-top:9px;background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+  padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:56px;
+  white-space:pre-wrap}
+.console:empty::before{content:"(noch keine Ausgabe)";opacity:.45}
+
+.col-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin:0 0 5px}
+.zone{margin-bottom:11px}
+
+/* Fenster-Attrappe */
+.win{border:1px solid var(--line);border-radius:6px;background:var(--bg);overflow:hidden;transition:opacity .3s}
+.win .bar{background:var(--panel);border-bottom:1px solid var(--line);padding:4px 8px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;color:var(--muted)}
+.win .body{padding:14px;display:flex;justify-content:center}
+.win.off{opacity:.3}
+.btn{border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:6px 14px;
+  font-size:13px;color:var(--fg);transition:all .2s}
+.btn.armed{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.btn.pressed{border-color:var(--hl-border);background:var(--hl);color:var(--fg);transform:translateY(1px)}
+.btn.dead{border-style:dashed;color:var(--muted);opacity:.6}
+
+.names{display:flex;flex-direction:column;gap:5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.name{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:5px;
+  padding:5px 9px;background:var(--bg);color:var(--muted);transition:all .3s}
+.name .arw{color:var(--accent)}
+.name b{color:var(--fg);font-weight:600}
+.name.live{border-color:var(--new);background:var(--new-soft)}
+.name.live b,.name.live .arw{color:var(--new)}
+.name.hot{border-color:var(--hl-border);background:var(--hl)}
+.name.bad{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.name.bad b,.name.bad .arw{color:var(--warn)}
+
+.state{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;
+  padding:6px 9px;background:var(--bg);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;color:var(--muted);transition:all .25s}
+.state .d{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;transition:all .25s}
+.state.run{border-color:var(--hl-border);background:var(--hl);color:var(--fg)}
+.state.run .d{background:var(--hl-border)}
+.state.wait{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.state.wait .d{background:var(--accent)}
+.state.done{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.state.done .d{background:var(--new)}
+
+/* Konzept: zwei Zuständigkeiten */
+.side{border:1px solid var(--line);border-radius:7px;padding:8px 11px;background:var(--bg);transition:all .3s}
+.side .who{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  font-weight:600;margin-bottom:4px;transition:color .3s}
+.side .what{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--fg)}
+.side .sub2{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;
+  color:var(--muted);margin-top:3px}
+.side.live{border-color:var(--hl-border);background:var(--hl)}
+.side.live .who{color:var(--fg)}
+.side.idle{opacity:.5}
+.transfer{display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--muted);
+  transition:color .3s;min-height:26px}
+.transfer.down{color:var(--accent)}
+.transfer.up{color:var(--new);font-weight:600}
+.transfer .ar{font-size:15px;line-height:1}
+
+.note{border:1px solid var(--line);border-radius:5px;padding:6px 9px;background:var(--bg);color:var(--muted);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;margin-top:8px}
+.note.good{border-color:var(--new);background:var(--new-soft);color:var(--new)}
+.note.warn{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.note b{font-weight:600}
+
+/* Zeitachse */
+.clock{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:600;
+  color:var(--fg);margin-bottom:8px;font-variant-numeric:tabular-nums}
+.lane{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:9px;margin-bottom:7px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px}
+.lane .lbl{color:var(--muted);white-space:nowrap;transition:color .3s}
+.lane.active .lbl{color:var(--accent)}
+.lane.fin .lbl{color:var(--new)}
+.track{position:relative;height:20px;border:1px solid var(--line);border-radius:4px;background:var(--bg);overflow:hidden}
+.fill{position:absolute;top:0;bottom:0;left:0;background:var(--accent-soft);border-right:2px solid var(--accent);
+  transition:width .45s linear}
+.lane.fin .fill{background:var(--new-soft);border-right-color:var(--new)}
+.lane.ghost .fill{background:var(--warn-soft);border-right-color:var(--warn)}
+.ruler{position:relative;height:16px;margin-left:113px;border-top:1px solid var(--line);margin-top:2px}
+.tick{position:absolute;top:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:10px;color:var(--muted);transform:translateX(-50%);padding-top:2px}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--hl-border);transition:left .45s linear}
+
+.caption{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 6px 6px 0;padding:9px 12px;font-size:14px;min-height:62px}
+.caption code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.controls{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls button{border-radius:6px;font-size:13.5px;font-weight:600;padding:8px 16px;background:var(--panel);
+  border:1px solid var(--line);color:var(--fg);cursor:pointer;font-family:inherit}
+.controls button:hover{border-color:var(--accent);color:var(--accent)}
+.controls button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+.controls button#next{background:var(--accent);color:#fff;border-color:var(--accent)}
+.controls button#next:hover{opacity:.9;color:#fff}
+.controls button#play{min-width:112px}
+.counter{font-size:12.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hint{margin-top:8px;font-size:12.5px;color:var(--muted)}
+@media (max-width:780px){ .main{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition-duration:.01ms !important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div>
+      <h1>Callbacks: wer ruft wen, und wann?</h1>
+      <p class="sub">Bei einem Callback drehen sich die Rollen um: Sie rufen den Code nicht selbst auf,
+      sondern <b>übergeben</b> ihn – und jemand anderes ruft ihn später zurück. Die Animation zeigt,
+      wann genau das passiert und warum ein Klammerpaar zu viel alles kaputt macht.</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2 id="codetitle">Code</h2>
+      <pre class="code" id="code"></pre>
+      <div class="console" id="console"></div>
+    </div>
+
+    <div class="panel">
+      <h2 id="righttitle">Was gerade passiert</h2>
+
+      <div id="konzeptbox" class="hidden">
+        <div class="zone">
+          <div class="side" id="sideOwn">
+            <div class="who">Ihr Code</div>
+            <div class="what" id="ownWhat">–</div>
+            <div class="sub2" id="ownSub"></div>
+          </div>
+          <div class="transfer" id="transfer"><span class="ar">·</span><span id="transferTxt">–</span></div>
+          <div class="side" id="sideLib">
+            <div class="who">Fremder Code · verarbeite</div>
+            <div class="what" id="libWhat">–</div>
+            <div class="sub2" id="libSub"></div>
+          </div>
+        </div>
+        <div class="state" id="ctrl"><span class="d"></span><span id="ctrlText">–</span></div>
+      </div>
+
+      <div id="guibox">
+        <div class="zone">
+          <div class="win" id="win">
+            <div class="bar">tk</div>
+            <div class="body"><span class="btn" id="btn">Klicken Sie mich</span></div>
+          </div>
+        </div>
+        <div class="zone">
+          <p class="col-title">Wer hält was</p>
+          <div class="names" id="names"></div>
+        </div>
+        <div class="state" id="state"><span class="d"></span><span id="statetext">–</span></div>
+      </div>
+
+      <div id="asyncbox" class="hidden">
+        <div class="clock" id="clock">t = 0.0 s</div>
+        <div id="lanes"></div>
+        <div class="ruler" id="ruler"></div>
+      </div>
+
+      <div id="note"></div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="play">▶ Abspielen</button>
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen, mit der Leertaste abspielen und pausieren.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CODE_A = [
+    "import tkinter as tk",
+    "",
+    "def on_button_click():",
+    "    print('Der Button wurde geklickt!')",
+    "",
+    "root = tk.Tk()",
+    "button = tk.Button(root, text='Klicken Sie mich',",
+    "                   command=on_button_click)",
+    "button.pack()",
+    "root.mainloop()"
+  ];
+
+  var CODE_B = [
+    "import asyncio",
+    "",
+    "async def task_1():",
+    "    print('Task 1 gestartet')",
+    "    await asyncio.sleep(2)",
+    "    print('Task 1 abgeschlossen')",
+    "",
+    "async def task_2():",
+    "    print('Task 2 gestartet')",
+    "    await asyncio.sleep(3)",
+    "    print('Task 2 abgeschlossen')",
+    "",
+    "async def main():",
+    "    await asyncio.gather(task_1(), task_2())"
+  ];
+
+  function pace(d){
+    d = Math.round((d || 3000) * 0.55);
+    if(d < 1100) d = 1100;
+    if(d > 3200) d = 3200;
+    return d;
+  }
+  var CODE_C = [
+    "def gruessen(name):",
+    "    print('Hallo', name)",
+    "",
+    "def rufen(name):",
+    "    print('HEY ' + name.upper() + '!')",
+    "",
+    "def verarbeite(namen, aktion):",
+    "    <span class=\"cm\">for</span> n <span class=\"cm\">in</span> namen:",
+    "        aktion(n)   <span class=\"cm\"># hier wird zurückgerufen</span>",
+    "",
+    "verarbeite(['Anna', 'Ben'], gruessen)",
+    "verarbeite(['Anna', 'Ben'], rufen)"
+  ];
+
+  function mk(o){
+    return {view:o.view || "gui", line:o.line === undefined ? -1 : o.line, lineCls:o.lineCls || "active",
+      ownWhat:o.ownWhat || "", ownSub:o.ownSub || "", libWhat:o.libWhat || "", libSub:o.libSub || "",
+      own:o.own || "", lib:o.lib || "", transfer:o.transfer || "", transferTxt:o.transferTxt || "",
+      ctrl:o.ctrl || "", ctrlText:o.ctrlText || "–",
+      btn:o.btn || "", win:o.win || "off", names:o.names || [], state:o.state || "", statetext:o.statetext || "–",
+      t:o.t === undefined ? -1 : o.t, lanes:o.lanes || [], note:o.note || "", out:o.out || "",
+      codetitle:o.codetitle || "Code", righttitle:o.righttitle || "Was gerade passiert",
+      cap:o.cap, dur:pace(o.dur)};
+  }
+  function nm(n, target, cls){
+    return '<div class="name ' + (cls || "") + '">' + n + ' <span class="arw">&rarr;</span> <b>' + target + '</b></div>';
+  }
+
+  /* ================= Tab 1: das Konzept ================= */
+  var C = [];
+  function kz(o){
+    o.view = "konzept"; o.codetitle = o.codetitle || "Callback ohne jedes Framework";
+    o.righttitle = o.righttitle || "Zwei Zuständigkeiten";
+    return mk(o);
+  }
+
+  C.push(kz({line:6,dur:4600,
+    ownWhat:"gruessen(name)",ownSub:"Was soll geschehen?",own:"live",
+    libWhat:"verarbeite(namen, aktion)",libSub:"Wann soll es geschehen?",lib:"idle",
+    transferTxt:"noch nichts übergeben",
+    ctrl:"run",ctrlText:"Kontrolle: Ihr Code",
+    note:'<div class="note">Zwei Funktionen, die nichts voneinander wissen.</div>',
+    cap:"Die Grundidee eines Callbacks ist eine <b>Arbeitsteilung</b>. Ihre Funktion weiss, <b>was</b> passieren soll. Die fremde Funktion weiss, <b>wann</b> und <b>wie oft</b>. Keine der beiden könnte die Aufgabe allein lösen."}));
+
+  C.push(kz({line:10,dur:6500,
+    ownWhat:"gruessen",ownSub:"ohne Klammern – die Funktion selbst",own:"live",
+    libWhat:"verarbeite(namen, aktion)",libSub:"bekommt Daten und Funktion",lib:"",
+    transfer:"down",transferTxt:"übergeben ↓",
+    ctrl:"run",ctrlText:"Kontrolle: Ihr Code",
+    note:'<div class="note good">Übergeben wird die <b>Funktion</b>, nicht ihr Ergebnis.</div>',
+    cap:"<b>Die Übergabe.</b> Im Aufruf steht <code>gruessen</code> ohne Klammern – die Funktion reist als Argument mit, so wie eine Zahl oder eine Liste. Genau das meint der Begriff <b>First-Class Function</b>."}));
+
+  C.push(kz({line:6,dur:4800,
+    ownWhat:"gruessen",ownSub:"wartet darauf, gerufen zu werden",own:"idle",
+    libWhat:"aktion = gruessen",libSub:"der Parameter zeigt jetzt auf Ihre Funktion",lib:"live",
+    transferTxt:"Ihr Code steht still",
+    ctrl:"wait",ctrlText:"Kontrolle: fremder Code",
+    note:'<div class="note">Der Parameter <b>aktion</b> ist nur ein zweiter Name für <b>gruessen</b>.</div>',
+    cap:"<b>Jetzt kehrt sich die Richtung um.</b> <code>verarbeite</code> läuft, Ihr Code steht. Innerhalb der fremden Funktion heisst Ihre Funktion <code>aktion</code> – derselbe Code, ein anderer Name."}));
+
+  C.push(kz({line:8,dur:5000,out:"Hallo Anna",
+    ownWhat:"gruessen('Anna')",ownSub:"läuft – aufgerufen von aussen",own:"live",
+    libWhat:"aktion(n)  ·  n = 'Anna'",libSub:"entscheidet den Zeitpunkt",lib:"",
+    transfer:"up",transferTxt:"Rückruf ↑",
+    ctrl:"run",ctrlText:"Kontrolle: fremder Code ruft zurück",
+    note:'<div class="note good">Das ist der <b>Callback</b>: der Rückruf nach oben.</div>',
+    cap:"<b>Der Rückruf.</b> Die fremde Funktion springt in Ihren Code zurück – zu einem Zeitpunkt, den <b>sie</b> bestimmt hat. Sie haben <code>gruessen</code> nie selbst aufgerufen."}));
+
+  C.push(kz({line:8,dur:3400,out:"Hallo Anna\nHallo Ben",
+    ownWhat:"gruessen('Ben')",ownSub:"zweiter Rückruf",own:"live",
+    libWhat:"aktion(n)  ·  n = 'Ben'",libSub:"zweiter Schleifendurchgang",lib:"",
+    transfer:"up",transferTxt:"Rückruf ↑",
+    ctrl:"run",ctrlText:"Kontrolle: fremder Code ruft zurück",
+    note:'<div class="note">Wie oft zurückgerufen wird, bestimmt allein die Schleife.</div>',
+    cap:"Zweiter Durchgang, zweiter Rückruf. Ob einmal, zweimal oder tausendmal – das steht in der fremden Schleife, nicht in Ihrem Code."}));
+
+  C.push(kz({line:11,dur:6000,out:"Hallo Anna\nHallo Ben\nHEY ANNA!\nHEY BEN!",
+    ownWhat:"rufen",ownSub:"andere Funktion, gleiche Stelle",own:"live",
+    libWhat:"verarbeite(namen, aktion)",libSub:"unverändert – kein Zeichen angepasst",lib:"",
+    transfer:"down",transferTxt:"übergeben ↓",
+    ctrl:"run",ctrlText:"Kontrolle: Ihr Code",
+    note:'<div class="note good">Gleiches <b>Wann</b>, anderes <b>Was</b>.</div>',
+    cap:"<b>Und darum lohnt sich der Aufwand.</b> Dasselbe <code>verarbeite</code>, eine andere übergebene Funktion – anderes Verhalten, ohne dass an <code>verarbeite</code> eine einzige Zeile geändert wurde."}));
+
+  C.push(kz({line:-1,dur:7500,out:"Hallo Anna\nHallo Ben\nHEY ANNA!\nHEY BEN!",
+    righttitle:"Das Muster",
+    ownWhat:"Sie liefern das WAS",ownSub:"eine Funktion, die etwas erledigt",own:"live",
+    libWhat:"Das Framework bestimmt das WANN",libSub:"Klick, Timer, Antwort, Schleifendurchgang …",lib:"live",
+    transfer:"up",transferTxt:"„Ruf uns nicht an – wir rufen dich an.“",
+    ctrl:"done",ctrlText:"Muster: Umkehrung der Kontrolle",
+    note:'<div class="note good">Ohne Callback müssten Sie dauernd nachfragen, ob schon etwas passiert ist.</div>',
+    cap:"<b>Das ist das ganze Konzept.</b> Statt selbst zu fragen „ist schon etwas passiert?“, hinterlegen Sie einmal eine Funktion und werden benachrichtigt. Die nächsten beiden Tabs zeigen dasselbe Muster zweimal in echt: beim Button-Klick und beim Warten auf Antworten."}));
+
+  /* ================= Tab 2: GUI-Callback ================= */
+  var A = [];
+
+  A.push(mk({line:2,dur:3800,statetext:"Ihr Code läuft von oben nach unten",state:"run",
+    names:[nm("on_button_click","Funktionsobjekt","live")],
+    note:'<div class="note">Nur definiert. Aufgerufen wurde noch nichts.</div>',
+    cap:"Die Funktion <code>on_button_click</code> wird definiert – ein ganz gewöhnliches Funktionsobjekt. Ausgeführt wird sie hier noch nicht."}));
+
+  A.push(mk({line:5,dur:3200,win:"",btn:"",statetext:"Ihr Code läuft von oben nach unten",state:"run",
+    names:[nm("on_button_click","Funktionsobjekt","live")],
+    note:'<div class="note">Das Fenster existiert, ist aber noch leer.</div>',
+    cap:"<code>tk.Tk()</code> erzeugt das Fenster."}));
+
+  A.push(mk({line:6,dur:6500,win:"",btn:"armed",statetext:"Ihr Code läuft von oben nach unten",state:"run",
+    names:[nm("on_button_click","Funktionsobjekt","live"),
+           nm("button.command","dasselbe Funktionsobjekt","hot")],
+    note:'<div class="note good"><b>command=on_button_click</b> – ohne Klammern. Übergeben, nicht aufgerufen.</div>',
+    cap:"<b>Die entscheidende Zeile.</b> Der Button bekommt die Funktion <b>übergeben</b> und legt sie beiseite. Sie wird hier <b>nicht</b> ausgeführt – die Konsole bleibt leer. Genau dafür stehen keine Klammern hinter dem Namen."}));
+
+  A.push(mk({line:8,dur:3000,win:"",btn:"armed",statetext:"Ihr Code läuft von oben nach unten",state:"run",
+    names:[nm("on_button_click","Funktionsobjekt","live"),nm("button.command","dasselbe Funktionsobjekt","live")],
+    note:'<div class="note">Der Button ist jetzt sichtbar und scharf gestellt.</div>',
+    cap:"<code>pack()</code> platziert den Button im Fenster."}));
+
+  A.push(mk({line:9,dur:6000,win:"",btn:"armed",statetext:"tkinter wartet · Ihr Code steht still",state:"wait",
+    names:[nm("on_button_click","Funktionsobjekt","live"),nm("button.command","dasselbe Funktionsobjekt","live")],
+    note:'<div class="note good">Ab hier hat <b>tkinter</b> die Kontrolle, nicht mehr Ihr Skript.</div>',
+    cap:"<b>Hier kehrt sich die Kontrolle um.</b> <code>mainloop()</code> gibt die Steuerung an tkinter ab und kommt nicht mehr zurück. Ihr Skript ist an dieser Zeile stehengeblieben – von sich aus passiert jetzt gar nichts mehr. Es wird nur noch gewartet."}));
+
+  A.push(mk({line:9,dur:3400,win:"",btn:"pressed",statetext:"Ereignis: Mausklick",state:"run",
+    names:[nm("Ereignis","Klick auf button","hot"),nm("button.command","Funktionsobjekt","live")],
+    note:'<div class="note">tkinter schaut nach, was beim Button hinterlegt ist.</div>',
+    cap:"Jetzt klickt jemand. tkinter bemerkt das Ereignis und schaut nach, welche Funktion beim Button hinterlegt wurde."}));
+
+  A.push(mk({line:3,dur:5000,win:"",btn:"armed",out:"Der Button wurde geklickt!",
+    statetext:"tkinter ruft Ihre Funktion auf",state:"run",
+    names:[nm("tkinter","ruft on_button_click() auf","hot")],
+    note:'<div class="note good">Das ist der <b>Rückruf</b> – daher der Name Callback.</div>',
+    cap:"<b>Und das ist der Callback.</b> Nicht Ihr Code ruft die Funktion auf, sondern tkinter ruft in Ihren Code <b>zurück</b> – Sekunden oder Stunden nachdem Sie ihn übergeben haben."}));
+
+  A.push(mk({line:9,dur:4200,win:"",btn:"armed",out:"Der Button wurde geklickt!\nDer Button wurde geklickt!",
+    statetext:"tkinter wartet auf das nächste Ereignis",state:"wait",
+    names:[nm("button.command","Funktionsobjekt","live")],
+    note:'<div class="note">Beliebig oft wiederholbar – die Funktion bleibt hinterlegt.</div>',
+    cap:"Nach dem Rückruf wartet tkinter weiter. Ein zweiter Klick ruft dieselbe Funktion erneut auf – sie bleibt beim Button hinterlegt, bis das Programm endet."}));
+
+  A.push(mk({line:7,lineCls:"bad",dur:6000,win:"",btn:"dead",out:"Der Button wurde geklickt!",
+    codetitle:"Der Klassiker: command=on_button_click()",
+    statetext:"Fehler: bereits beim Erstellen ausgeführt",state:"run",
+    names:[nm("on_button_click()","wird sofort ausgeführt","bad"),
+           nm("button.command","None – der Rückgabewert","bad")],
+    note:'<div class="note warn">Mit Klammern: einmal ausgeführt, dann <b>None</b> hinterlegt.</div>',
+    cap:"<b>Der häufigste Anfängerfehler.</b> Mit <code>command=on_button_click()</code> wird die Funktion schon beim Erstellen des Buttons <b>einmal ausgeführt</b> – die Meldung erscheint sofort, ohne jeden Klick. Übergeben wird dann ihr Rückgabewert <code>None</code>."}));
+
+  A.push(mk({line:9,lineCls:"bad",dur:7000,win:"",btn:"dead",out:"Der Button wurde geklickt!",
+    codetitle:"Der Klassiker: command=on_button_click()",
+    statetext:"Button reagiert nicht mehr",state:"wait",
+    names:[nm("button.command","None","bad")],
+    note:'<div class="note warn">Klicken bewirkt nichts – und es kommt keine Fehlermeldung.</div>',
+    cap:"<b>Folge:</b> Beim Klicken passiert gar nichts mehr, denn beim Button liegt jetzt <code>None</code> statt einer Funktion. Und weil Python keinen Fehler meldet, sucht man den Grund oft lange an der falschen Stelle. Merksatz: <b>Klammern rufen auf, kein Klammernpaar übergibt.</b>"}));
+
+  /* ================= Tab 2: asyncio-Zeitachse ================= */
+  var B = [];
+  var MAXT = 5;
+
+  function lane(lbl, from, to, now, cls){
+    var w = 0;
+    if(now >= to) w = to - from;
+    else if(now > from) w = now - from;
+    return {lbl:lbl, left:from, w:w, total:to - from, cls:cls || ""};
+  }
+
+  B.push(mk({view:"async",line:13,dur:4200,t:0,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+    lanes:[lane("task_1 (2 s)",0,2,0),lane("task_2 (3 s)",0,3,0)],
+    note:'<div class="note"><b>gather</b> startet beide Aufgaben, bevor eine davon fertig ist.</div>',
+    cap:"<code>asyncio.gather(task_1(), task_2())</code> startet beide Aufgaben. Auch hier ist es ein Rückruf-Muster: Sie geben die Aufgaben ab und werden benachrichtigt, wenn sie fertig sind."}));
+
+  B.push(mk({view:"async",line:3,dur:4000,t:0,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+    out:"Task 1 gestartet\nTask 2 gestartet",
+    lanes:[lane("task_1 (2 s)",0,2,0,"active"),lane("task_2 (3 s)",0,3,0,"active")],
+    note:'<div class="note good">Beide Meldungen erscheinen bei <b>t = 0</b>.</div>',
+    cap:"<b>t = 0:</b> Beide Tasks melden sich sofort. Task 2 musste nicht warten, bis Task 1 fertig ist – das ist der ganze Unterschied zum sequenziellen Ablauf."}));
+
+  B.push(mk({view:"async",line:4,dur:4400,t:1,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+    out:"Task 1 gestartet\nTask 2 gestartet",
+    lanes:[lane("task_1 (2 s)",0,2,1,"active"),lane("task_2 (3 s)",0,3,1,"active")],
+    note:'<div class="note">Beide warten <b>gleichzeitig</b>. Die CPU tut derweil nichts.</div>',
+    cap:"<b>t = 1:</b> Beide hängen in ihrem <code>await asyncio.sleep(...)</code>. Genau hier liegt der Gewinn: die Wartezeiten <b>überlappen sich</b>, statt sich zu addieren."}));
+
+  B.push(mk({view:"async",line:5,dur:4000,t:2,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+    out:"Task 1 gestartet\nTask 2 gestartet\nTask 1 abgeschlossen",
+    lanes:[lane("task_1 (2 s)",0,2,2,"fin"),lane("task_2 (3 s)",0,3,2,"active")],
+    note:'<div class="note">Task 1 ist fertig, Task 2 wartet noch eine Sekunde.</div>',
+    cap:"<b>t = 2:</b> Task 1 ist durch und meldet sich. Task 2 läuft unbeeindruckt weiter."}));
+
+  B.push(mk({view:"async",line:10,dur:4400,t:3,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+    out:"Task 1 gestartet\nTask 2 gestartet\nTask 1 abgeschlossen\nTask 2 abgeschlossen",
+    lanes:[lane("task_1 (2 s)",0,2,3,"fin"),lane("task_2 (3 s)",0,3,3,"fin")],
+    note:'<div class="note good">Gesamtdauer: <b>3 Sekunden</b> – die längere der beiden.</div>',
+    cap:"<b>t = 3:</b> Auch Task 2 ist fertig, das Programm endet. Gesamtdauer ist nicht 2 + 3, sondern das Maximum der beiden: <b>3 Sekunden</b>."}));
+
+  B.push(mk({view:"async",line:13,dur:7000,t:5,righttitle:"Zeitachse · Vergleich",codetitle:"asyncio.gather",
+    out:"Task 1 gestartet\nTask 2 gestartet\nTask 1 abgeschlossen\nTask 2 abgeschlossen",
+    lanes:[lane("task_1 (2 s)",0,2,5,"fin"),lane("task_2 (3 s)",0,3,5,"fin"),
+           lane("synchron: 1",0,2,5,"ghost"),lane("synchron: 2",2,5,5,"ghost")],
+    note:'<div class="note warn">Nacheinander wären es <b>5 Sekunden</b> statt 3.</div>',
+    cap:"<b>Zum Vergleich</b> unten dieselben zwei Aufgaben nacheinander: Task 2 startet erst, wenn Task 1 fertig ist – <b>5 Sekunden</b>. Der Zeitgewinn entsteht nicht durch schnelleres Rechnen, sondern dadurch, dass gleichzeitig <em>gewartet</em> wird."}));
+
+  var EX = [
+    {name:"1 · Das Konzept", steps:C, code:CODE_C},
+    {name:"2 · Callback im GUI", steps:A, code:CODE_A},
+    {name:"3 · Nebenläufig warten", steps:B, code:CODE_B}
+  ];
+
+  /* ---------- Aufbau ---------- */
+  var codeEl = document.getElementById("code"), lineEls = [], curEx = -1;
+  function buildCode(list){
+    codeEl.innerHTML = ""; lineEls = [];
+    for(var k = 0; k < list.length; k++){
+      var s = document.createElement("span");
+      s.className = "ln";
+      s.innerHTML = '<span class="num">' + (k + 1) + '</span>' + list[k];
+      codeEl.appendChild(s); lineEls.push(s);
+    }
+  }
+
+  var rulerEl = document.getElementById("ruler");
+  (function(){
+    var h = "", k;
+    for(k = 0; k <= MAXT; k++) h += '<span class="tick" style="left:' + (k / MAXT * 100) + '%">' + k + ' s</span>';
+    h += '<span class="playhead" id="playhead" style="left:0%"></span>';
+    rulerEl.innerHTML = h;
+  })();
+
+  var tabsEl = document.getElementById("tabs"), tabBtns = [], t;
+  for(t = 0; t < EX.length; t++){
+    (function(idx){
+      var b = document.createElement("button");
+      b.appendChild(document.createTextNode(EX[idx].name));
+      b.onclick = function(){ setPlay(false); show(idx, 0); };
+      tabsEl.appendChild(b); tabBtns.push(b);
+    })(t);
+  }
+
+  var konzeptBox = document.getElementById("konzeptbox"),
+      sideOwn = document.getElementById("sideOwn"), sideLib = document.getElementById("sideLib"),
+      ownWhat = document.getElementById("ownWhat"), ownSub = document.getElementById("ownSub"),
+      libWhat = document.getElementById("libWhat"), libSub = document.getElementById("libSub"),
+      transferEl = document.getElementById("transfer"), transferTxt = document.getElementById("transferTxt"),
+      ctrlEl = document.getElementById("ctrl"), ctrlText = document.getElementById("ctrlText"),
+      guiBox = document.getElementById("guibox"), asyncBox = document.getElementById("asyncbox"),
+      winEl = document.getElementById("win"), btnEl = document.getElementById("btn"),
+      namesEl = document.getElementById("names"), stEl = document.getElementById("state"),
+      stTx = document.getElementById("statetext"), lanesEl = document.getElementById("lanes"),
+      clockEl = document.getElementById("clock"), headEl = document.getElementById("playhead"),
+      noteEl = document.getElementById("note"), codeT = document.getElementById("codetitle"),
+      rightT = document.getElementById("righttitle"), consEl = document.getElementById("console"),
+      capEl = document.getElementById("caption"), cntEl = document.getElementById("counter"),
+      playBtn = document.getElementById("play"), prevBtn = document.getElementById("prev"),
+      nextBtn = document.getElementById("next");
+  var ex = 0, i = 0, playing = false, timer = null;
+  var steps = EX[0].steps;
+
+  function show(newEx, newI){
+    ex = newEx; steps = EX[ex].steps; i = newI;
+    if(curEx !== ex){ buildCode(EX[ex].code); curEx = ex; }
+    render();
+  }
+
+  function render(){
+    var s = steps[i], k, h;
+    for(k = 0; k < lineEls.length; k++){
+      lineEls[k].className = "ln" + (k === s.line ? " " + s.lineCls : "");
+    }
+
+    if(s.view === "konzept"){
+      konzeptBox.className = ""; guiBox.className = "hidden"; asyncBox.className = "hidden";
+      sideOwn.className = "side " + s.own;
+      sideLib.className = "side " + s.lib;
+      ownWhat.innerHTML = s.ownWhat; ownSub.innerHTML = s.ownSub;
+      libWhat.innerHTML = s.libWhat; libSub.innerHTML = s.libSub;
+      transferEl.className = "transfer " + s.transfer;
+      transferEl.firstChild.innerHTML = s.transfer === "down" ? "&darr;" : (s.transfer === "up" ? "&uarr;" : "·");
+      transferTxt.innerHTML = s.transferTxt;
+      ctrlEl.className = "state " + s.ctrl;
+      ctrlText.innerHTML = s.ctrlText;
+    } else if(s.view === "async"){
+      konzeptBox.className = "hidden"; guiBox.className = "hidden"; asyncBox.className = "";
+      clockEl.innerHTML = "t = " + s.t.toFixed(1) + " s";
+      headEl.style.left = (Math.min(s.t, MAXT) / MAXT * 100) + "%";
+      h = "";
+      for(k = 0; k < s.lanes.length; k++){
+        var L = s.lanes[k];
+        h += '<div class="lane ' + L.cls + '"><span class="lbl">' + L.lbl + '</span>' +
+             '<span class="track"><span class="fill" style="left:' + (L.left / MAXT * 100) +
+             '%;width:' + (L.w / MAXT * 100) + '%"></span></span></div>';
+      }
+      lanesEl.innerHTML = h;
+    } else {
+      konzeptBox.className = "hidden"; guiBox.className = ""; asyncBox.className = "hidden";
+      winEl.className = "win " + s.win;
+      btnEl.className = "btn " + s.btn;
+      namesEl.innerHTML = s.names.join("");
+      stEl.className = "state " + s.state;
+      stTx.innerHTML = s.statetext;
+    }
+
+    noteEl.innerHTML = s.note;
+    codeT.innerHTML = s.codetitle;
+    rightT.innerHTML = s.righttitle;
+    consEl.textContent = s.out;
+    capEl.innerHTML = s.cap;
+    for(k = 0; k < tabBtns.length; k++) tabBtns[k].className = (k === ex) ? "active" : "";
+    cntEl.innerHTML = "Schritt " + (i + 1) + " / " + steps.length;
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === steps.length - 1);
+  }
+  function schedule(){
+    if(timer) clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(function(){
+      if(i < steps.length - 1){ i++; render(); schedule(); }
+      else { playing = false; playBtn.innerHTML = "▶ Abspielen"; }
+    }, steps[i].dur);
+  }
+  function setPlay(v){
+    playing = v;
+    playBtn.innerHTML = v ? "❚❚ Pause" : "▶ Abspielen";
+    if(v){ if(i >= steps.length - 1){ i = 0; render(); } schedule(); }
+    else if(timer) clearTimeout(timer);
+  }
+  playBtn.onclick = function(){ setPlay(!playing); };
+  nextBtn.onclick = function(){ setPlay(false); if(i < steps.length - 1){ i++; render(); } };
+  prevBtn.onclick = function(){ setPlay(false); if(i > 0){ i--; render(); } };
+  document.getElementById("reset").onclick = function(){ setPlay(false); i = 0; render(); };
+  document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowRight"){ setPlay(false); if(i < steps.length - 1){ i++; render(); } }
+    if(e.key === "ArrowLeft"){ setPlay(false); if(i > 0){ i--; render(); } }
+    if(e.key === " "){ e.preventDefault(); setPlay(!playing); }
+  });
+
+  show(0, 0);
+})();
+</script>
+</body>
+</html>

@@ -16,6 +16,7 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | `lu02/byvalue-byreference.html` | LU02d | By Value / By Reference: Speichermodell beim Funktionsaufruf, `int` vs. `list` |
 | `lu02/objekte-und-standardwerte.html` | LU02e | Objekte by reference, `frozen=True`, geteilter mutable Standardwert |
 | `lu03/rekursion.html` | LU03b | Call Stack von `factorial(3)`, Aufrufbaum von `fibonacci(4)` mit Mehrfachberechnungen |
+| `lu03/callbacks.html` | LU03f | Umkehrung der Kontrolle: Muster ohne Framework, tkinter-Button, `asyncio.gather`-Zeitachse |
 | `lu03/a01-verzeichnisbaum.html` | LU03.A01 | Rekursive Suche im Verzeichnisbaum, Schritte 1–4 der 5-Schritte-Methode |
 | `lu03/a02-zinseszins.html` | LU03.A02 | Zinseszins rekursiv, Schritte 1–4 der 5-Schritte-Methode |
 | `lu03/a07-abschreibung.html` | LU03.A07 | Abschreibung rekursiv, Schritte 1–4 der 5-Schritte-Methode |
