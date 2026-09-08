@@ -205,7 +205,7 @@ tr.now td.k{color:var(--fg)}
 
   var B = [], rowsB = [];
 
-  B.push({line:1,rows:[],out:"",vars:vars([["n","6",false],["schritte","0",false]]),dur:3600,
+  B.push({line:[0,1],rows:[],out:"",vars:vars([["n","6",false],["schritte","0",false]]),dur:3600,
     cap:"Die Collatz-Folge: gerade Zahl halbieren, ungerade Zahl mal drei plus eins – so lange, bis 1 herauskommt. Gezählt wird, wie viele Schritte das braucht."});
 
   (function(){
@@ -222,7 +222,7 @@ tr.now td.k{color:var(--fg)}
         vars:vars([["n", String(n), true],["schritte", String(schritte), true]]),
         dur: (n === 1) ? 4600 : (schritte <= 2 ? 3400 : 2200),
         cap: (n === 1)
-          ? "<b>n ist 1</b> – die Schleifenbedingung <code>n != 1</code> ist damit falsch und die Schleife endet."
+          ? "<code>2</code> ist gerade &rarr; halbieren ergibt <code>1</code>. Damit ist die Schleifenbedingung <code>n != 1</code> falsch und die Schleife endet."
           : (gerade
              ? "<code>" + vorher + "</code> ist gerade &rarr; halbieren ergibt <code>" + nachher + "</code>."
              : "<code>" + vorher + "</code> ist ungerade &rarr; <code>3 · " + vorher + " + 1 = " + nachher + "</code>. Die Zahl wird also erst einmal <b>grösser</b>.")});
@@ -277,7 +277,13 @@ tr.now td.k{color:var(--fg)}
 
   function render(){
     var s = steps[i], k, c, h;
-    for(k = 0; k < lineEls.length; k++) lineEls[k].className = "ln" + (k === s.line ? " active" : "");
+    var act = (s.line === undefined || s.line === null) ? []
+              : (typeof s.line === "number" ? (s.line < 0 ? [] : [s.line]) : s.line);
+    for(k = 0; k < lineEls.length; k++){
+      var hit = false;
+      for(c = 0; c < act.length; c++) if(act[c] === k) hit = true;
+      lineEls[k].className = "ln" + (hit ? " active" : "");
+    }
 
     h = "<tr>";
     for(k = 0; k < EX[ex].head.length; k++) h += "<th>" + EX[ex].head[k] + "</th>";

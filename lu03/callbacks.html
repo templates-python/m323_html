@@ -50,6 +50,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
 .code .ln .num{display:inline-block;width:22px;text-align:right;margin-right:9px;color:var(--muted);opacity:.55;
   -webkit-user-select:none;user-select:none}
 .code .ln.active{background:var(--hl);border-left-color:var(--hl-border)}
+.code .ln.caller{background:color-mix(in srgb, var(--hl) 45%, transparent);border-left-color:var(--hl-border)}
 .code .ln.bad{background:var(--warn-soft);border-left-color:var(--warn)}
 .code .ln.waiting{background:var(--accent-soft);border-left-color:var(--accent)}
 .code .cm{color:var(--muted)}
@@ -240,8 +241,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
     "    print('Der Button wurde geklickt!')",
     "",
     "root = tk.Tk()",
-    "button = tk.Button(root, text='Klicken Sie mich',",
-    "                   command=on_button_click)",
+    "button = tk.Button(root, text='Klicken Sie mich', command=on_button_click)",
     "button.pack()",
     "root.mainloop()"
   ];
@@ -286,6 +286,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
 
   function mk(o){
     return {view:o.view || "gui", line:o.line === undefined ? -1 : o.line, lineCls:o.lineCls || "active",
+      caller:o.caller === undefined ? -1 : o.caller,
       ownWhat:o.ownWhat || "", ownSub:o.ownSub || "", libWhat:o.libWhat || "", libSub:o.libSub || "",
       own:o.own || "", lib:o.lib || "", transfer:o.transfer || "", transferTxt:o.transferTxt || "",
       ctrl:o.ctrl || "", ctrlText:o.ctrlText || "–",
@@ -306,7 +307,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
     return mk(o);
   }
 
-  C.push(kz({line:6,dur:4600,
+  C.push(kz({line:-1,dur:4600,
     ownWhat:"gruessen(name)",ownSub:"Was soll geschehen?",own:"live",
     libWhat:"verarbeite(namen, aktion)",libSub:"Wann soll es geschehen?",lib:"idle",
     transferTxt:"noch nichts übergeben",
@@ -330,7 +331,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
     note:'<div class="note">Der Parameter <b>aktion</b> ist nur ein zweiter Name für <b>gruessen</b>.</div>',
     cap:"<b>Jetzt kehrt sich die Richtung um.</b> <code>verarbeite</code> läuft, Ihr Code steht. Innerhalb der fremden Funktion heisst Ihre Funktion <code>aktion</code> – derselbe Code, ein anderer Name."}));
 
-  C.push(kz({line:8,dur:5000,out:"Hallo Anna",
+  C.push(kz({line:1,caller:8,dur:5000,out:"Hallo Anna",
     ownWhat:"gruessen('Anna')",ownSub:"läuft – aufgerufen von aussen",own:"live",
     libWhat:"aktion(n)  ·  n = 'Anna'",libSub:"entscheidet den Zeitpunkt",lib:"",
     transfer:"up",transferTxt:"Rückruf ↑",
@@ -338,7 +339,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
     note:'<div class="note good">Das ist der <b>Callback</b>: der Rückruf nach oben.</div>',
     cap:"<b>Der Rückruf.</b> Die fremde Funktion springt in Ihren Code zurück – zu einem Zeitpunkt, den <b>sie</b> bestimmt hat. Sie haben <code>gruessen</code> nie selbst aufgerufen."}));
 
-  C.push(kz({line:8,dur:3400,out:"Hallo Anna\nHallo Ben",
+  C.push(kz({line:1,caller:8,dur:3400,out:"Hallo Anna\nHallo Ben",
     ownWhat:"gruessen('Ben')",ownSub:"zweiter Rückruf",own:"live",
     libWhat:"aktion(n)  ·  n = 'Ben'",libSub:"zweiter Schleifendurchgang",lib:"",
     transfer:"up",transferTxt:"Rückruf ↑",
@@ -382,34 +383,34 @@ h1{font-size:19px;margin:0;line-height:1.3}
     note:'<div class="note good"><b>command=on_button_click</b> – ohne Klammern. Übergeben, nicht aufgerufen.</div>',
     cap:"<b>Die entscheidende Zeile.</b> Der Button bekommt die Funktion <b>übergeben</b> und legt sie beiseite. Sie wird hier <b>nicht</b> ausgeführt – die Konsole bleibt leer. Genau dafür stehen keine Klammern hinter dem Namen."}));
 
-  A.push(mk({line:8,dur:3000,win:"",btn:"armed",statetext:"Ihr Code läuft von oben nach unten",state:"run",
+  A.push(mk({line:7,dur:3000,win:"",btn:"armed",statetext:"Ihr Code läuft von oben nach unten",state:"run",
     names:[nm("on_button_click","Funktionsobjekt","live"),nm("button.command","dasselbe Funktionsobjekt","live")],
     note:'<div class="note">Der Button ist jetzt sichtbar und scharf gestellt.</div>',
     cap:"<code>pack()</code> platziert den Button im Fenster."}));
 
-  A.push(mk({line:9,dur:6000,win:"",btn:"armed",statetext:"tkinter wartet · Ihr Code steht still",state:"wait",
+  A.push(mk({line:8,dur:6000,win:"",btn:"armed",statetext:"tkinter wartet · Ihr Code steht still",state:"wait",
     names:[nm("on_button_click","Funktionsobjekt","live"),nm("button.command","dasselbe Funktionsobjekt","live")],
     note:'<div class="note good">Ab hier hat <b>tkinter</b> die Kontrolle, nicht mehr Ihr Skript.</div>',
     cap:"<b>Hier kehrt sich die Kontrolle um.</b> <code>mainloop()</code> gibt die Steuerung an tkinter ab und kommt nicht mehr zurück. Ihr Skript ist an dieser Zeile stehengeblieben – von sich aus passiert jetzt gar nichts mehr. Es wird nur noch gewartet."}));
 
-  A.push(mk({line:9,dur:3400,win:"",btn:"pressed",statetext:"Ereignis: Mausklick",state:"run",
+  A.push(mk({line:8,dur:3400,win:"",btn:"pressed",statetext:"Ereignis: Mausklick",state:"run",
     names:[nm("Ereignis","Klick auf button","hot"),nm("button.command","Funktionsobjekt","live")],
     note:'<div class="note">tkinter schaut nach, was beim Button hinterlegt ist.</div>',
     cap:"Jetzt klickt jemand. tkinter bemerkt das Ereignis und schaut nach, welche Funktion beim Button hinterlegt wurde."}));
 
-  A.push(mk({line:3,dur:5000,win:"",btn:"armed",out:"Der Button wurde geklickt!",
+  A.push(mk({line:3,caller:8,dur:5000,win:"",btn:"armed",out:"Der Button wurde geklickt!",
     statetext:"tkinter ruft Ihre Funktion auf",state:"run",
     names:[nm("tkinter","ruft on_button_click() auf","hot")],
     note:'<div class="note good">Das ist der <b>Rückruf</b> – daher der Name Callback.</div>',
     cap:"<b>Und das ist der Callback.</b> Nicht Ihr Code ruft die Funktion auf, sondern tkinter ruft in Ihren Code <b>zurück</b> – Sekunden oder Stunden nachdem Sie ihn übergeben haben."}));
 
-  A.push(mk({line:9,dur:4200,win:"",btn:"armed",out:"Der Button wurde geklickt!\nDer Button wurde geklickt!",
+  A.push(mk({line:8,dur:4200,win:"",btn:"armed",out:"Der Button wurde geklickt!\nDer Button wurde geklickt!",
     statetext:"tkinter wartet auf das nächste Ereignis",state:"wait",
     names:[nm("button.command","Funktionsobjekt","live")],
     note:'<div class="note">Beliebig oft wiederholbar – die Funktion bleibt hinterlegt.</div>',
     cap:"Nach dem Rückruf wartet tkinter weiter. Ein zweiter Klick ruft dieselbe Funktion erneut auf – sie bleibt beim Button hinterlegt, bis das Programm endet."}));
 
-  A.push(mk({line:7,lineCls:"bad",dur:6000,win:"",btn:"dead",out:"Der Button wurde geklickt!",
+  A.push(mk({line:6,lineCls:"bad",dur:6000,win:"",btn:"dead",out:"Der Button wurde geklickt!",
     codetitle:"Der Klassiker: command=on_button_click()",
     statetext:"Fehler: bereits beim Erstellen ausgeführt",state:"run",
     names:[nm("on_button_click()","wird sofort ausgeführt","bad"),
@@ -417,7 +418,7 @@ h1{font-size:19px;margin:0;line-height:1.3}
     note:'<div class="note warn">Mit Klammern: einmal ausgeführt, dann <b>None</b> hinterlegt.</div>',
     cap:"<b>Der häufigste Anfängerfehler.</b> Mit <code>command=on_button_click()</code> wird die Funktion schon beim Erstellen des Buttons <b>einmal ausgeführt</b> – die Meldung erscheint sofort, ohne jeden Klick. Übergeben wird dann ihr Rückgabewert <code>None</code>."}));
 
-  A.push(mk({line:9,lineCls:"bad",dur:7000,win:"",btn:"dead",out:"Der Button wurde geklickt!",
+  A.push(mk({line:8,lineCls:"bad",dur:7000,win:"",btn:"dead",out:"Der Button wurde geklickt!",
     codetitle:"Der Klassiker: command=on_button_click()",
     statetext:"Button reagiert nicht mehr",state:"wait",
     names:[nm("button.command","None","bad")],
@@ -440,13 +441,13 @@ h1{font-size:19px;margin:0;line-height:1.3}
     note:'<div class="note"><b>gather</b> startet beide Aufgaben, bevor eine davon fertig ist.</div>',
     cap:"<code>asyncio.gather(task_1(), task_2())</code> startet beide Aufgaben. Auch hier ist es ein Rückruf-Muster: Sie geben die Aufgaben ab und werden benachrichtigt, wenn sie fertig sind."}));
 
-  B.push(mk({view:"async",line:3,dur:4000,t:0,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+  B.push(mk({view:"async",line:[3,8],dur:4000,t:0,righttitle:"Zeitachse",codetitle:"asyncio.gather",
     out:"Task 1 gestartet\nTask 2 gestartet",
     lanes:[lane("task_1 (2 s)",0,2,0,"active"),lane("task_2 (3 s)",0,3,0,"active")],
     note:'<div class="note good">Beide Meldungen erscheinen bei <b>t = 0</b>.</div>',
     cap:"<b>t = 0:</b> Beide Tasks melden sich sofort. Task 2 musste nicht warten, bis Task 1 fertig ist – das ist der ganze Unterschied zum sequenziellen Ablauf."}));
 
-  B.push(mk({view:"async",line:4,dur:4400,t:1,righttitle:"Zeitachse",codetitle:"asyncio.gather",
+  B.push(mk({view:"async",line:[4,9],dur:4400,t:1,righttitle:"Zeitachse",codetitle:"asyncio.gather",
     out:"Task 1 gestartet\nTask 2 gestartet",
     lanes:[lane("task_1 (2 s)",0,2,1,"active"),lane("task_2 (3 s)",0,3,1,"active")],
     note:'<div class="note">Beide warten <b>gleichzeitig</b>. Die CPU tut derweil nichts.</div>',
@@ -526,6 +527,13 @@ h1{font-size:19px;margin:0;line-height:1.3}
   var ex = 0, i = 0, playing = false, timer = null;
   var steps = EX[0].steps;
 
+  function indexOf(a, v){ for(var k = 0; k < a.length; k++) if(a[k] === v) return k; return -1; }
+  function toArr(v){
+    if(v === undefined || v === null) return [];
+    if(typeof v === "number") return v < 0 ? [] : [v];
+    return v;
+  }
+
   function show(newEx, newI){
     ex = newEx; steps = EX[ex].steps; i = newI;
     if(curEx !== ex){ buildCode(EX[ex].code); curEx = ex; }
@@ -534,8 +542,12 @@ h1{font-size:19px;margin:0;line-height:1.3}
 
   function render(){
     var s = steps[i], k, h;
+    var act = toArr(s.line), cal = toArr(s.caller);
     for(k = 0; k < lineEls.length; k++){
-      lineEls[k].className = "ln" + (k === s.line ? " " + s.lineCls : "");
+      var lc = "ln";
+      if(indexOf(act, k) > -1) lc += " " + s.lineCls;
+      else if(indexOf(cal, k) > -1) lc += " caller";
+      lineEls[k].className = lc;
     }
 
     if(s.view === "konzept"){
