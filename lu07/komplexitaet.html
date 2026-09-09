@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LU07g – Warum ein set schneller sucht als eine Liste</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1f2328; --muted:#5b6670; --line:#d8dee4;
+    --panel:#f6f8fa; --hl:#fff3c4; --hl-border:#e5b800;
+    --accent:#0b62c4; --accent-soft:#e7f0fb;
+    --slow:#b3541e; --slow-soft:#fbeee4;
+    --fast:#0a7d55; --fast-soft:#e4f5ee;
+    --console-bg:#20262c; --console-fg:#e6edf3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#151a1f; --fg:#e6edf3; --muted:#9aa7b2; --line:#30373d;
+      --panel:#1c2229; --hl:#3d3413; --hl-border:#b79600;
+      --accent:#65a9f5; --accent-soft:#1d2c3d;
+      --slow:#e79465; --slow-soft:#33231a;
+      --fast:#4fc99a; --fast-soft:#16302a;
+      --console-bg:#0d1117; --console-fg:#e6edf3;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--fg);padding:14px;
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  .app{max-width:1020px;margin:0 auto}
+
+  .head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .head h1{font-size:17px;margin:0;font-weight:600}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{
+    font:inherit;font-size:13px;padding:6px 12px;cursor:pointer;
+    background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:999px;
+  }
+  .tabs button.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+
+  .panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden;margin-bottom:12px}
+  .panel h2{
+    font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    margin:0;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600;
+  }
+  .body{padding:12px;min-height:250px}
+
+  .frage{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);
+         border-radius:6px;padding:7px 10px;margin-bottom:12px}
+
+  .struktur{border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:9px 11px;margin-bottom:10px}
+  .struktur.off{opacity:.38}
+  .struktur.hot{border-color:var(--accent)}
+  .struktur .kopf{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;gap:10px;flex-wrap:wrap}
+  .struktur .name{font:12px ui-monospace,monospace;font-weight:700}
+  .struktur .zaehler{font:12px ui-monospace,monospace;color:var(--muted)}
+  .struktur .zaehler b{font-size:14px}
+  .struktur.slow .name{color:var(--slow)}
+  .struktur.fast .name{color:var(--fast)}
+
+  .zellen{display:flex;flex-wrap:wrap;gap:4px}
+  .zelle{
+    font:11px ui-monospace,monospace;border:1px solid var(--line);border-radius:4px;
+    padding:3px 6px;background:var(--bg);color:var(--muted);
+  }
+  .zelle.geprueft{background:var(--slow-soft);border-color:var(--slow);color:var(--slow);text-decoration:line-through}
+  .zelle.treffer{background:var(--fast-soft);border-color:var(--fast);color:var(--fast);font-weight:700;text-decoration:none}
+  .zelle.jetzt{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+
+  .hash{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font:12px ui-monospace,monospace}
+  .hash .box{border:1px solid var(--line);border-radius:4px;padding:4px 8px;background:var(--bg)}
+  .hash .box.hot{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+  .hash .box.treffer{border-color:var(--fast);background:var(--fast-soft);color:var(--fast);font-weight:700}
+  .hash .pfeil{color:var(--accent)}
+
+  /* Tabelle Tab 2 */
+  table.mess{width:100%;border-collapse:collapse;font:12.5px ui-monospace,monospace}
+  table.mess th{
+    text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);
+  }
+  table.mess td{padding:6px 8px;border-bottom:1px solid var(--line)}
+  table.mess tr:last-child td{border-bottom:none}
+  table.mess td.zahl{text-align:right}
+  table.mess td.slow{color:var(--slow);font-weight:600}
+  table.mess td.fast{color:var(--fast);font-weight:600}
+  table.mess tr.neu td{background:var(--hl)}
+
+  .balken{margin-top:12px}
+  .balkenzeile{display:flex;align-items:center;gap:8px;margin-bottom:5px;font:11.5px ui-monospace,monospace}
+  .balkenzeile .lab{width:5.5em;text-align:right;color:var(--muted);flex:none}
+  .balkenzeile .bar{height:13px;border-radius:3px;min-width:2px}
+  .balkenzeile .bar.slow{background:var(--slow)}
+  .balkenzeile .bar.fast{background:var(--fast)}
+  .balkenzeile .wert{color:var(--muted)}
+
+  .console{
+    background:var(--console-bg);color:var(--console-fg);border-radius:6px;
+    font:12.5px/1.6 ui-monospace,monospace;padding:8px 11px;margin-top:12px;min-height:34px;white-space:pre-wrap;
+  }
+  .stamp{font-size:11px;color:var(--muted);margin-top:6px;text-align:right}
+
+  .caption{margin-top:14px;padding:12px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0;font-size:14px}
+  .caption b{color:var(--accent)}
+  .controls{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .controls button{font:inherit;font-size:13.5px;font-weight:600;padding:8px 16px;cursor:pointer;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
+  .controls button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .controls button:disabled{opacity:.4;cursor:default}
+  #next{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #next:hover:not(:disabled){opacity:.9;color:#fff}
+  .counter{font-size:12.5px;color:var(--muted);margin-left:auto}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="head">
+    <h1>Warum ein <code>set</code> schneller sucht als eine Liste</h1>
+    <div class="tabs">
+      <button data-ex="0" class="active">1 · Eine einzelne Suche</button>
+      <button data-ex="1">2 · Wenn die Daten wachsen</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 id="paneltitle">Suche</h2>
+    <div class="body">
+      <div id="viz"></div>
+      <div class="console" id="console"></div>
+      <div class="stamp">Zeiten gemessen mit Python 3.12, 1000 Anfragen je Durchlauf</div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+
+  <div class="controls">
+    <button id="prev">◀ Zurück</button>
+    <button id="next">Weiter ▶</button>
+    <button id="reset">↺ Neu</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="hint">Tipp: Mit den Pfeiltasten ← → durchsteppen. Zählen Sie in Tab 1 mit, wie oft verglichen wird.</div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     Tab 1 – eine einzelne Suche: 12 Konten, gesucht wird das letzte
+     ============================================================ */
+
+  var KONTEN = ["user0","user1","user2","user3","user4","user5",
+                "user6","user7","user8","user9","user10","user11"];
+  var GESUCHT = "user11";
+  var FRAGE = "'" + GESUCHT + "' in gesperrt";
+
+  // z = Anzahl bereits geprüfter Zellen, treffer = Index des Treffers oder -1
+  function listeBlock(z, treffer, zustand){
+    var zellen = "";
+    for (var i = 0; i < KONTEN.length; i++){
+      var cls = "zelle";
+      if (treffer === i) cls += " treffer";
+      else if (i < z) cls += " geprueft";
+      if (i === z - 1 && treffer === -1) cls += " jetzt";
+      zellen += '<span class="' + cls + '">' + KONTEN[i] + '</span>';
+    }
+    var anzahl = treffer > -1 ? treffer + 1 : z;
+    return '<div class="struktur slow ' + zustand + '">'
+         + '<div class="kopf"><span class="name">list</span>'
+         + '<span class="zaehler">Vergleiche: <b>' + anzahl + '</b></span></div>'
+         + '<div class="zellen">' + zellen + '</div></div>';
+  }
+
+  function setBlock(phase, zustand){
+    var h = '<div class="hash">'
+          + '<span class="box' + (phase >= 1 ? " hot" : "") + '">hash(\'' + GESUCHT + '\')</span>'
+          + '<span class="pfeil">→</span>'
+          + '<span class="box' + (phase >= 1 ? " hot" : "") + '">' + (phase >= 1 ? "Fach 7" : "?") + '</span>'
+          + '<span class="pfeil">→</span>'
+          + '<span class="box' + (phase >= 2 ? " treffer" : "") + '">' + (phase >= 2 ? "gefunden" : "nachschauen") + '</span>'
+          + '</div>';
+    var anzahl = phase >= 2 ? 1 : 0;
+    return '<div class="struktur fast ' + zustand + '">'
+         + '<div class="kopf"><span class="name">set</span>'
+         + '<span class="zaehler">Schritte: <b>' + anzahl + '</b></span></div>'
+         + h + '</div>';
+  }
+
+  function szene(z, treffer, setPhase, fokus){
+    return '<div class="frage">' + FRAGE + '</div>'
+         + listeBlock(z, treffer, fokus === "list" ? "hot" : (fokus === "set" ? "off" : ""))
+         + setBlock(setPhase, fokus === "set" ? "hot" : (fokus === "list" ? "off" : ""));
+  }
+
+  var STEPS_A = [
+    { html: szene(0, -1, 0, ""), out: "",
+      cap: "Dieselben zwölf gesperrten Konten, zweimal gespeichert: einmal als <code>list</code>, einmal als <code>set</code>. Gesucht wird <code>'user11'</code>. Beide liefern gleich <code>True</code> – die Frage ist, <b>wie viel Arbeit</b> das kostet." },
+
+    { html: szene(1, -1, 0, "list"), out: "",
+      cap: "Die Liste hat keine Ordnung, auf die sie sich verlassen könnte. Sie muss von vorne beginnen: <code>'user0' == 'user11'</code>? Nein." },
+
+    { html: szene(2, -1, 0, "list"), out: "",
+      cap: "Nächster Vergleich: <code>'user1' == 'user11'</code>? Auch nein. Die Liste kann nicht abkürzen – sie weiss nichts darüber, wo der Wert liegen könnte." },
+
+    { html: szene(3, -1, 0, "list"), out: "",
+      cap: "Und weiter. Jedes einzelne Element wird angeschaut, bis eines passt. Im Mittel ist das die halbe Liste, im ungünstigsten Fall die ganze." },
+
+    { html: szene(11, -1, 0, "list"), out: "",
+      cap: "…elf Vergleiche später ist immer noch nichts gefunden. Der gesuchte Eintrag steht ganz am Schluss – der ungünstigste Fall." },
+
+    { html: szene(12, 11, 0, "list"), out: "True",
+      cap: "<b>Treffer beim zwölften Vergleich.</b> Bei 12 Einträgen sind das 12 Vergleiche, bei 5000 Einträgen 5000. Die Arbeit wächst mit der Datenmenge: <b>O(n)</b>." },
+
+    { html: szene(12, 11, 1, "set"), out: "True",
+      cap: "Das <code>set</code> geht anders vor. Es rechnet aus dem Wert selbst eine Zahl aus – den <b>Hash</b> – und die sagt ihm, in welchem Fach der Eintrag liegen müsste. Suchen muss es dafür nicht." },
+
+    { html: szene(12, 11, 2, "set"), out: "True\nTrue",
+      cap: "<b>Ein Schritt statt zwölf.</b> Und das Entscheidende: Der Hash hängt nur vom gesuchten Wert ab, nicht davon, wie viele Einträge gespeichert sind. Bei 5000 Konten ist es genauso ein Schritt: <b>O(1)</b>." },
+
+    { html: szene(12, 11, 2, ""), out: "True\nTrue",
+      cap: "<b>Beide Antworten sind identisch</b> – nur der Weg dorthin ist ein anderer. Deshalb ist der Wechsel von <code>list</code> auf <code>set</code> ein Refactoring im Verhalten und eine Optimierung in der Laufzeit. Was er kostet, steht in Tab 2." }
+  ];
+
+  /* ============================================================
+     Tab 2 – Messung, wenn die Datenmenge wächst
+     Gemessen: 1000 Anfragen gegen n gesperrte Konten, Python 3.12
+     ============================================================ */
+
+  var MESSUNG = [
+    { n: 100,     nTxt: "100",     vgl: "50",     list: 0.00056, set: 0.000031, faktor: 18 },
+    { n: 1000,    nTxt: "1 000",   vgl: "500",    list: 0.00528, set: 0.000037, faktor: 142 },
+    { n: 10000,   nTxt: "10 000",  vgl: "5 000",  list: 0.05189, set: 0.000035, faktor: 1467 },
+    { n: 100000,  nTxt: "100 000", vgl: "50 000", list: 0.53415, set: 0.000040, faktor: 13441 }
+  ];
+  var MAXZEIT = 0.53415;
+
+  function tabelle(bis){
+    var h = '<table class="mess"><tr>'
+          + '<th>gesperrte Konten</th><th>Vergleiche je Anfrage (list)</th>'
+          + '<th>list</th><th>set</th><th>Faktor</th></tr>';
+    for (var i = 0; i < bis; i++){
+      var m = MESSUNG[i];
+      h += '<tr' + (i === bis - 1 ? ' class="neu"' : '') + '>'
+         + '<td class="zahl">' + m.nTxt + '</td>'
+         + '<td class="zahl">' + m.vgl + '</td>'
+         + '<td class="zahl slow">' + m.list.toFixed(5) + ' s</td>'
+         + '<td class="zahl fast">' + m.set.toFixed(6) + ' s</td>'
+         + '<td class="zahl">' + m.faktor + '×</td></tr>';
+    }
+    h += '</table>';
+
+    h += '<div class="balken">';
+    for (var j = 0; j < bis; j++){
+      var e = MESSUNG[j];
+      var bl = Math.max(2, Math.round(e.list / MAXZEIT * 100));
+      var bs = Math.max(2, Math.round(e.set / MAXZEIT * 100));
+      h += '<div class="balkenzeile"><span class="lab">' + e.nTxt + '</span>'
+         + '<span class="bar slow" style="width:' + bl + '%"></span>'
+         + '<span class="wert">list ' + e.list.toFixed(5) + ' s</span></div>';
+      h += '<div class="balkenzeile"><span class="lab"></span>'
+         + '<span class="bar fast" style="width:' + bs + '%"></span>'
+         + '<span class="wert">set ' + e.set.toFixed(6) + ' s</span></div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  var CODE_MESS = "gesperrt = [f'user{i}' for i in range(n)]      # bzw. {…} für das set\n"
+                + "sum(1 for a in anfragen if a in gesperrt)      # 1000 Anfragen";
+
+  var STEPS_B = [
+    { html: '<div class="frage">' + CODE_MESS + '</div>' + tabelle(1), out: "",
+      cap: "Gemessen wird dieselbe Aufgabe mit wachsender Sperrliste: 1000 Anfragen prüfen. Bei 100 Konten ist der Unterschied noch klein – <b>18-fach</b>, aber in absoluten Zahlen unter einer Millisekunde. Hier würde niemand optimieren." },
+
+    { html: '<div class="frage">' + CODE_MESS + '</div>' + tabelle(2), out: "",
+      cap: "Zehnmal mehr Daten: Die Liste braucht rund <b>zehnmal länger</b>, das Set bleibt gleich. Genau das meint O(n) gegenüber O(1)." },
+
+    { html: '<div class="frage">' + CODE_MESS + '</div>' + tabelle(3), out: "",
+      cap: "Nochmals zehnmal mehr, nochmals zehnmal langsamer. Das Set hat sich in drei Zeilen praktisch nicht bewegt – 0.000031 s, 0.000037 s, 0.000035 s. Die Schwankung ist Messrauschen, kein Wachstum." },
+
+    { html: '<div class="frage">' + CODE_MESS + '</div>' + tabelle(4), out: "",
+      cap: "<b>Bei 100 000 Konten: eine halbe Sekunde gegen 0.00004 Sekunden.</b> In einer Web-Anwendung ist das der Unterschied zwischen einer Seite, die sofort da ist, und einer, bei der man wartet – bei identischem Ergebnis und einer geänderten Klammer." },
+
+    { html: '<div class="frage">' + CODE_MESS + '</div>' + tabelle(4), out: "",
+      cap: "<b>Was das Set kostet:</b> Es verliert die Reihenfolge, entfernt Duplikate stillschweigend und braucht hashbare Elemente – und es belegt zusätzlichen Speicher. Wo die Reihenfolge fachlich zählt oder Duplikate eigene Einträge sind, bleibt die Liste richtig. Diese Abwägung gehört ins Portfolio, nicht nur die Zahl." }
+  ];
+
+  var EXAMPLES = [
+    { steps: STEPS_A, titel: "Suche" },
+    { steps: STEPS_B, titel: "Messung" }
+  ];
+
+  /* ============================================================
+     Rendering
+     ============================================================ */
+  var elViz = document.getElementById("viz");
+  var elConsole = document.getElementById("console");
+  var elCaption = document.getElementById("caption");
+  var elCounter = document.getElementById("counter");
+  var elTitle = document.getElementById("paneltitle");
+  var btnPrev = document.getElementById("prev");
+  var btnNext = document.getElementById("next");
+  var btnReset = document.getElementById("reset");
+
+  var exIndex = 0, stepIndex = 0;
+
+  function renderStep(){
+    var ex = EXAMPLES[exIndex], step = ex.steps[stepIndex];
+    elViz.innerHTML = step.html;
+    elConsole.textContent = step.out;
+    elCaption.innerHTML = step.cap;
+    elCounter.textContent = "Schritt " + stepIndex + " / " + (ex.steps.length - 1);
+    btnPrev.disabled = stepIndex === 0;
+    btnNext.disabled = stepIndex === ex.steps.length - 1;
+  }
+
+  function go(d){
+    var max = EXAMPLES[exIndex].steps.length - 1;
+    stepIndex = Math.min(max, Math.max(0, stepIndex + d));
+    renderStep();
+  }
+
+  function switchExample(i){
+    exIndex = i; stepIndex = 0;
+    var tabs = document.querySelectorAll(".tabs button");
+    for (var t = 0; t < tabs.length; t++) tabs[t].className = (t === i) ? "active" : "";
+    elTitle.textContent = EXAMPLES[i].titel;
+    renderStep();
+  }
+
+  btnNext.addEventListener("click", function(){ go(1); });
+  btnPrev.addEventListener("click", function(){ go(-1); });
+  btnReset.addEventListener("click", function(){ stepIndex = 0; renderStep(); });
+
+  var tabs = document.querySelectorAll(".tabs button");
+  for (var t = 0; t < tabs.length; t++){
+    (function(btn){
+      btn.addEventListener("click", function(){ switchExample(parseInt(btn.getAttribute("data-ex"), 10)); });
+    })(tabs[t]);
+  }
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "ArrowRight"){ go(1); e.preventDefault(); }
+    if (e.key === "ArrowLeft"){ go(-1); e.preventDefault(); }
+  });
+
+  switchExample(0);
+})();
+</script>
+</body>
+</html>

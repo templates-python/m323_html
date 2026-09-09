@@ -11,25 +11,12 @@ Build-Kette). Ausgeliefert wird über GitHub Pages, eingebunden wird im
 | Datei | Learning Unit | Thema |
 |---|---|---|
 | `index.html` | – | Übersicht aller Animationen |
-| `lu01/tracetable.html` | LU01d | Trace Table zeilenweise aufgebaut: lineare Suche, Collatz-Folge |
 | `lu02/pure-vs-unpure.html` | LU02b | Determinismus: gleiche Eingabe, gleiches Ergebnis? Mit und ohne globalen Zustand |
 | `lu02/byvalue-byreference.html` | LU02d | By Value / By Reference: Speichermodell beim Funktionsaufruf, `int` vs. `list` |
 | `lu02/objekte-und-standardwerte.html` | LU02e | Objekte by reference, `frozen=True`, geteilter mutable Standardwert |
 | `lu03/rekursion.html` | LU03b | Call Stack von `factorial(3)`, Aufrufbaum von `fibonacci(4)` mit Mehrfachberechnungen |
-| `lu03/callbacks.html` | LU03f | Umkehrung der Kontrolle: Muster ohne Framework, tkinter-Button, `asyncio.gather`-Zeitachse |
-| `lu03/a01-verzeichnisbaum.html` | LU03.A01 | Rekursive Suche im Verzeichnisbaum, Schritte 1–4 der 5-Schritte-Methode |
-| `lu03/a02-zinseszins.html` | LU03.A02 | Zinseszins rekursiv, Schritte 1–4 der 5-Schritte-Methode |
-| `lu03/a07-abschreibung.html` | LU03.A07 | Abschreibung rekursiv, Schritte 1–4 der 5-Schritte-Methode |
-| `lu03/l01-verzeichnisbaum.html` | LU03.L01 | Musterlösung Verzeichnisbaum, alle 5 Schritte inkl. Code-Aufbau |
-| `lu03/l02-zinseszins.html` | LU03.L02 | Musterlösung Zinseszins, alle 5 Schritte inkl. Code-Aufbau |
-| `lu03/l07-abschreibung.html` | LU03.L07 | Musterlösung Abschreibung, alle 5 Schritte inkl. Code-Aufbau |
-
-| `lu04/generatoren.html` | LU04h/i | Lazy Evaluation: wo `yield` anhält, Generator Expression vs. List Comprehension, Einmaligkeit |
-| `lu05/closures.html` | LU05c | Rahmen verschwindet, Zelle überlebt; zwei unabhängige Closures aus derselben Fabrik |
-| `lu05/decorator.html` | LU05d | `@` als Zuweisung, Name wird umgehängt; Decorator mit eigenem Parameter |
-
-Die `a*`-Dateien gehören auf die **Aufgabenseite** und zeigen keine Lösung, die `l*`-Dateien auf die
-**Lösungsseite** und bauen den Code in Schritt 5 Zeile für Zeile aus den erarbeiteten Regeln auf.
+| `lu07/schleife-zur-pipeline.html` | LU07d | Refactoring der Schleife zur Pipeline in fünf Schritten, plus Kriterien gegen den Umbau |
+| `lu07/komplexitaet.html` | LU07g | `in` auf `list` gegen `set`: Vergleiche zählen, gemessene Laufzeiten von 100 bis 100 000 Einträgen |
 
 ## GitHub Pages aktivieren
 
@@ -53,7 +40,14 @@ bereits installierten [`iframe`-Plugin](https://www.dokuwiki.org/plugin:iframe):
 {{url>https://templates-python.github.io/m323_html/lu02/byvalue-byreference.html 100%,760px noborder|Animation: By Value und By Reference}}
 ```
 
-Die Höhe (`760px`) ist bewusst fix – der iframe kann seine Höhe nicht selbst an den Inhalt
+Für die beiden LU07-Animationen:
+
+```
+{{url>https://templates-python.github.io/m323_html/lu07/schleife-zur-pipeline.html 100%,720px noborder|Animation: Von der Schleife zur Pipeline}}
+{{url>https://templates-python.github.io/m323_html/lu07/komplexitaet.html 100%,780px noborder|Animation: list gegen set}}
+```
+
+Die Höhe ist bewusst fix – der iframe kann seine Höhe nicht selbst an den Inhalt
 anpassen. Bei schmalen Fenstern klappt das Layout einspaltig um und braucht mehr Platz.
 
 **Nicht** per `confightmlok` direkt in die Wikiseite einbetten: Die CSS-Klassen der Animation
@@ -64,25 +58,19 @@ anpassen. Bei schmalen Fenstern klappt das Layout einspaltig um und braucht mehr
 * Ein Ordner pro Learning Unit (`lu02/`, `lu03/`, …), Dateiname beschreibt das Thema.
 * Vollständig standalone: CSS und JS inline, keine externen Requests.
 * Theme-aware: helle Palette auf `:root`, Dark Mode über `@media (prefers-color-scheme: dark)`.
-* **Beim Laden wird nicht abgespielt.** Steuerung über «Weiter»/«Zurück», zusätzlich Pfeiltasten –
-  Lernende sollen das Tempo bestimmen und Schritte vergleichen können. Ein «Abspielen»-Knopf darf
-  daneben stehen (für die Vorführung im Unterricht), muss aber ausgeschaltet starten und bei jedem
-  manuellen Schritt stoppen.
-* **Animationen zu Aufträgen (`a*`) zeigen die Lösung nicht.** Sie führen durch die Schritte 1 bis 4 der
-  5-Schritte-Methode (`lu03:rekursion2`) und halten die erkannten Regeln in Worten fest.
-  Schritt 5 – die Regel als Funktion – bleibt die Aufgabe der Lernenden. Kein Lösungscode in der Datei.
-* **Animationen zu Lösungen (`l*`) zeigen alle fünf Schritte.** Schritt 5 baut den Code der Musterlösung
-  aus dem Wiki zeilenweise auf; jede Zeile wird auf die Regel zurückgeführt, aus der sie stammt.
-  Der Code muss mit der Lösungsseite im Wiki übereinstimmen, und die gezeigte Ausgabe mit `repr()`
-  aus echtem Python – auch die Float-Artefakte.
+* **Kein Autoplay.** Steuerung über «Weiter»/«Zurück», zusätzlich Pfeiltasten – Lernende sollen
+  das Tempo bestimmen und Schritte vergleichen können.
 * Jeder Schritt hat einen erklärenden Satz; der didaktisch entscheidende Schritt wird
   explizit als solcher markiert.
 * Neue Datei in `index.html` und in der Tabelle oben ergänzen.
 * **Alle gezeigten Ausgaben gegen echtes Python prüfen**, bevor die Animation veröffentlicht wird –
   eine Animation, die etwas anderes behauptet als der Interpreter, richtet mehr Schaden an als Nutzen.
+  Das gilt auch für Laufzeiten: Die Zahlen in `lu07/komplexitaet.html` stammen aus einer Messung mit
+  Python 3.12 (1000 Anfragen je Durchlauf, `timeit.repeat(..., repeat=3)`, kleinster Wert).
 
 Die Schritt-Engine (CSS + JS) ist in jeder Datei dupliziert, damit jede Animation für sich allein
-lauffähig bleibt. Ab der dritten Animation lohnt es sich, sie nach `assets/` auszulagern.
+lauffähig bleibt. Bei nun sechs Dateien lohnt sich das Auslagern nach `assets/` beim nächsten
+grösseren Umbau.
 
 ## Lizenz
 

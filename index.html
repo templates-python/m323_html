@@ -46,14 +46,6 @@
   <p class="sub">Standalone-HTML-Animationen zum Modul 323 «Funktional Programmieren».
      Sie werden im Modulwiki per <code>iframe</code> in die jeweilige Theorieseite eingebettet.</p>
 
-  <h2>LU01 – Einführung</h2>
-
-  <a class="card" href="lu01/tracetable.html">
-    <span class="t">Trace Table: Zeile für Zeile mitschreiben</span>
-    <span class="d">Die Tabelle füllt sich Durchgang für Durchgang, während der Code danebenläuft –
-      lineare Suche und Collatz-Folge. Zeigt unter anderem, warum die Schleife früher abbricht als gedacht.</span>
-  </a>
-
   <h2>LU02 – Grundkonzepte</h2>
 
   <a class="card" href="lu02/pure-vs-unpure.html">
@@ -82,78 +74,18 @@
       und warum <code>fibonacci</code> dieselben Teilprobleme mehrfach berechnet.</span>
   </a>
 
-  <a class="card" href="lu03/callbacks.html">
-    <span class="t">Callbacks: wer ruft wen, und wann?</span>
-    <span class="d">Erst das Muster ohne Framework – Sie liefern das Was, der fremde Code bestimmt das Wann.
-      Dann zweimal in echt: der Button-Klick (samt dem Klammernfehler) und das nebenläufige Warten.</span>
+  <h2>LU07 – Refactoring</h2>
+
+  <a class="card" href="lu07/schleife-zur-pipeline.html">
+    <span class="t">Von der Schleife zur Pipeline</span>
+    <span class="d">Fünf Umbauschritte von der imperativen Schleife zur Comprehension – bei jedem
+      Schritt dasselbe Ergebnis in der Konsole. Und drei Kriterien dafür, wann die Schleife bleibt.</span>
   </a>
 
-  <h2>LU03 – Aufträge nach der 5-Schritte-Methode</h2>
-  <p class="sub" style="margin:-4px 0 10px">Diese drei Animationen führen durch die Schritte 1 bis 4 der
-     Anleitung aus <code>lu03:rekursion2</code> und zeigen bewusst <strong>keine Lösung</strong> –
-     Schritt 5 bleibt die Aufgabe der Lernenden.</p>
-
-  <a class="card" href="lu03/a01-verzeichnisbaum.html">
-    <span class="t">A01 – Rekursive Suche im Verzeichnisbaum</span>
-    <span class="d">Vom einzelnen Element als Base Case über die Suche von Hand bis zur Regel, die jeden
-      Unterordner als dasselbe, kleinere Problem behandelt.</span>
-  </a>
-
-  <a class="card" href="lu03/a02-zinseszins.html">
-    <span class="t">A02 – Zinseszins rekursiv gedacht</span>
-    <span class="d">Warum die Laufzeit <code>0</code> der Base Case ist, wieso vier Jahre ein Jahr Zins
-      plus drei Jahre sind – und weshalb eine negative Laufzeit den Base Case verfehlt.</span>
-  </a>
-
-  <a class="card" href="lu03/a07-abschreibung.html">
-    <span class="t">A07 – Abschreibung rekursiv gedacht</span>
-    <span class="d">Dieselbe Struktur wie A02, nur mit <code>× 0.9</code> statt <code>× 1.05</code> –
-      inklusive der beiden Eingabeprüfungen und dem häufigen Denkfehler, vom Anfangswert abzuschreiben.</span>
-  </a>
-
-  <h2>LU03 – Musterlösungen mit allen fünf Schritten</h2>
-  <p class="sub" style="margin:-4px 0 10px">Dieselben Aufgaben, aber inklusive Schritt 5: der Code entsteht
-     Zeile für Zeile aus den vorher erarbeiteten Regeln und läuft anschliessend durch.
-     <strong>Enthält die Lösung</strong> – gehört auf die Lösungsseite, nicht auf die Aufgabenseite.</p>
-
-  <a class="card" href="lu03/l01-verzeichnisbaum.html">
-    <span class="t">L01 – Verzeichnisbaum: von der Regel zum Code</span>
-    <span class="d">Jede Zeile von <code>find_file</code> wird auf die Regel zurückgeführt, aus der sie stammt –
-      inklusive der Frage, was ohne das <code>return</code> in der Schleife passieren würde.</span>
-  </a>
-
-  <a class="card" href="lu03/l02-zinseszins.html">
-    <span class="t">L02 – Zinseszins: von der Regel zum Code</span>
-    <span class="d">Warum der <code>ValueError</code> ganz nach oben gehört, was den Base Case zum Base Case
-      macht – und weshalb Python am Ende <code>1215.5062500000001</code> ausgibt.</span>
-  </a>
-
-  <a class="card" href="lu03/l07-abschreibung.html">
-    <span class="t">L07 – Abschreibung: von der Regel zum Code</span>
-    <span class="d">Zwei Wächter, ein Base Case, ein Rekursionsschritt – in dieser Reihenfolge, und warum
-      jede andere Reihenfolge die Funktion kaputt macht.</span>
-  </a>
-
-  <h2>LU04 – Iterables</h2>
-
-  <a class="card" href="lu04/generatoren.html">
-    <span class="t">Generatoren: wann wird eigentlich gerechnet?</span>
-    <span class="d">Warum <code>count_up_to(3)</code> keine einzige Zeile ausführt, wo <code>yield</code> anhält
-      und was dabei stehen bleibt – und weshalb das zweite <code>sum(gen)</code> stillschweigend 0 ergibt.</span>
-  </a>
-
-  <h2>LU05 – Funktionale Komponenten</h2>
-
-  <a class="card" href="lu05/closures.html">
-    <span class="t">Closures: was die Funktion überlebt</span>
-    <span class="d">Der Rahmen der äusseren Funktion verschwindet vom Stack, die Zelle mit ihrer Variablen
-      bleibt. Zwei Aufrufe ergeben zwei unabhängige Zellen – nachgewiesen über <code>__closure__</code>.</span>
-  </a>
-
-  <a class="card" href="lu05/decorator.html">
-    <span class="t">Decorators: was das @-Zeichen wirklich tut</span>
-    <span class="d"><code>@logged</code> ist nichts als <code>add = logged(add)</code>: der Name wird umgehängt,
-      das Original ist nur noch über die Closure erreichbar. Zweites Beispiel: Decorator mit eigenem Parameter.</span>
+  <a class="card" href="lu07/komplexitaet.html">
+    <span class="t">Warum ein <code>set</code> schneller sucht als eine Liste</span>
+    <span class="d">Zwölf Vergleiche gegen einen Zugriff – Schritt für Schritt mitgezählt.
+      Dazu gemessene Laufzeiten von 100 bis 100 000 Einträgen: O(n) gegen O(1).</span>
   </a>
 
   <footer>
